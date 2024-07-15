@@ -145,6 +145,8 @@ class Preprocess():
         """
         # # Slice
         # self.slice()
+        # # Slice with Specific Order
+        # self.specific()
 
         """
         ================================================================================================================
@@ -713,6 +715,103 @@ class Preprocess():
         self.hmasks.sort()
 
         return
+
+    """
+    ====================================================================================================================
+    Slice with Specific Order
+    ====================================================================================================================
+    """ 
+    def specific(self) -> None:
+
+        print()
+        print('=======================================================================================================')
+        print('Slice with Specific Order')
+        print('=======================================================================================================')
+        print()
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+
+            if i < 20:
+                dataset = 'Train'
+            elif i < 24:
+                dataset = 'Val'
+            elif i < 26:
+                dataset = 'Test'
+
+            # Load Data and Backgrond
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
+
+            # Find Blank Slice Index
+            lower = -1
+            upper = -1
+            for j in range(192):
+                
+                # Ratio of Head Region to Whole Slice
+                ratio = hmask[:, :, j].sum() / (192 * 192)
+
+                # Lower Bound
+                if (ratio > 0.075) and (lower == -1):
+                    lower = j
+                    continue
+                # Upper Bound
+                if (ratio < 0.075) and (lower != -1) and (upper == -1):
+                    upper = j
+                    break
+
+            # Slice
+            for j in range(lower + 3, upper - 3):
+                
+                # (192, 192, 7) and (192, 192, 1)
+                mr = image[:, :, j - 3 : j + 3 + 1]
+                ct = label[:, :, j : j + 1]
+                hm = hmask[:, :, j : j + 1]
+
+                # Transpose (Z, X, Y)
+                mr = mr.transpose(2, 0, 1)
+                ct = ct.transpose(2, 0, 1)
+                hm = hm.transpose(2, 0, 1)
+
+                # Rotate
+                mr = np.rot90(mr, k = 1, axes = (1, 2))
+                ct = np.rot90(ct, k = 1, axes = (1, 2))
+                hm = np.rot90(hm, k = 1, axes = (1, 2))
+
+                # Save Data
+                mr = nib.Nifti1Image(mr, np.eye(4))
+                nib.save(mr, os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(j) + '.nii'))
+
+                ct = nib.Nifti1Image(ct, np.eye(4))
+                nib.save(ct, os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(j) + '.nii'))
+                
+                hm = nib.Nifti1Image(hm, np.eye(4))
+                nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(j) + '.nii'))
+        print()
+
+        # Check Training, Validation, Testing Set
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Train')
+        print('-------------------------------------------------------------------------------------------------------')
+        print(*sorted([file[2:4] for file in self.images[:20]]))
+        print()
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Val')
+        print('-------------------------------------------------------------------------------------------------------')
+        print(*sorted([file[2:4] for file in self.images[20:24]]))
+        print()
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Test')
+        print('-------------------------------------------------------------------------------------------------------')
+        print(*sorted([file[2:4] for file in self.images[24:]]))
+        print()
+
+        # Ascending Sort File Name List
+        self.images.sort()
+        self.labels.sort()
+        self.hmasks.sort()
 
     """
     ====================================================================================================================
