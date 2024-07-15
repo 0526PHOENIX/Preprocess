@@ -1,3 +1,8 @@
+# Data
+/Data_Raw
+/Data
+/Data_2D
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
