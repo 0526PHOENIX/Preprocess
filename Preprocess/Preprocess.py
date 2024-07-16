@@ -129,7 +129,7 @@ class Preprocess():
         Extract Brain Region + Remove Useless Region
         ================================================================================================================
         """
-        # # Strip Skull
+        # # Extract Brain Region
         # self.strip()
         # # Fill Holes in Brain Mask
         # self.fillhole()
@@ -153,7 +153,7 @@ class Preprocess():
         Extract Skull Region
         ================================================================================================================
         """
-        # # Extract Slull
+        # # Extract Slull Region
         # self.extract()
 
         """
@@ -279,14 +279,14 @@ class Preprocess():
             # Flatten MR Data
             flat = image.flatten()
 
-            # Ascending Order
+            # Sort in Ascending Order
             sorted = np.sort(flat)
 
-            # Cumulative Distribution
+            # Get Cumulative Distribution
             dis = np.cumsum(sorted)
             dis = dis / dis[-1]
 
-            # Find Threshold
+            # Get Threshold
             if (i + 1) in self.artifacts:
                 # Specific Case
                 index = np.where(dis <= 0.200)[0][-1]
@@ -365,7 +365,7 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             
-            # Summarize MR Max Value
+            # Summarize MR Maximum Value
             if (i + 1) != 14:
                 maximum.append(image.max())
 
@@ -405,14 +405,14 @@ class Preprocess():
     
     """
     ====================================================================================================================
-    Strip Skull
+    Extract Brain Region
     ====================================================================================================================
     """
     def strip(self) -> None:
 
         print()
         print('=======================================================================================================')
-        print('Strip Skull')
+        print('Extract Brain Region')
         print('=======================================================================================================')
         print()
 
@@ -837,14 +837,14 @@ class Preprocess():
 
     """
     ====================================================================================================================
-    Extract Skull
+    Extract Skull Region
     ====================================================================================================================
     """
     def extract(self) -> None:
 
         print()
         print('=======================================================================================================')
-        print('Extract Skull')
+        print('Extract Skull Region')
         print('=======================================================================================================')
         print()
 
