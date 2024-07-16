@@ -145,8 +145,8 @@ class Preprocess():
         """
         # # Slice
         # self.slice()
-        # # Slice with Specific Order
-        # self.specific()
+        # Slice with Specific Order
+        self.specific()
 
         """
         ================================================================================================================
@@ -161,10 +161,10 @@ class Preprocess():
         Check Data Behavior
         ================================================================================================================
         """
-        # # Visulize Skull Stripping Result
-        # self.visualize()
         # # Check Statistic
         # self.statistic()
+        # # Visulize Brain and Skull Extraction Result
+        # self.visualize()
 
         return
 
@@ -729,6 +729,28 @@ class Preprocess():
         print('=======================================================================================================')
         print()
 
+        # Clear File Name List
+        self.images.clear()
+        self.labels.clear()
+        self.hmasks.clear()
+
+        # Open File of Specifice Order
+        with open(os.path.join(DATA_2D, 'Slice.txt'), 'r') as file:
+            lines = file.readlines()
+
+        # Get Specifice Order
+        for line in lines:
+
+            # Split Out Numerical Part
+            nums = line.split()
+
+            # Form New File Name List with Specific Order
+            for num in nums:
+                if num.isdigit():
+                    self.images.append('MR' + str(num) + '.nii')
+                    self.labels.append('CT' + str(num) + '.nii')
+                    self.hmasks.append('HM' + str(num) + '.nii')
+
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
         for i in progress:
@@ -815,36 +837,57 @@ class Preprocess():
 
     """
     ====================================================================================================================
-    Visulize Skull Stipping Result
+    Extract Skull
     ====================================================================================================================
     """
-    def visualize(self) -> None:
+    def extract(self) -> None:
 
         print()
         print('=======================================================================================================')
-        print('Visulize Skull Stipping Result')
+        print('Extract Skull')
         print('=======================================================================================================')
         print()
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
         for i in progress:
-
+            
             # Load Data
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
 
-            # Overlap Original Data and Brain Region
-            image = image + np.abs(brain * image.mean() * 5)
-            label = label + np.abs(brain * label.mean() * 5)
+            # Apply Erosion Mask
+            brain = ndimage.binary_erosion(brain, np.ones((13, 13, 13)))
+            label = np.where(brain, -1000, label)
+
+            # Find Threshold
+            value = (label[label != -1000].mean() * 1) + (label[label != -1000].std() * 0)
+
+            # Thresholding
+            binary = (label > value)
+
+            # Get Connective Component
+            components, features = ndimage.label(binary)
+
+            # Compute Size of Each Component
+            sizes = ndimage.sum(binary, components, range(1, features + 1))
+
+            # Find Largest Component
+            largest = np.argmax(sizes) + 1
+
+            # Slect Largest Component
+            smask = (components == largest)
+
+            # Fill Holes in Mask
+            smask = ndimage.binary_dilation(smask, np.ones((5, 5, 5)))
+            smask = ndimage.binary_erosion(smask, np.ones((5, 5, 5)))
+
+            # Apply Mask
+            label = np.where(smask, label, -1000)
 
             # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(VS, self.images[i]))
-
             label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(VS, self.labels[i]))
+            nib.save(label, os.path.join(SK, 'SK' + self.labels[i][2:]))
         print()
 
         return
@@ -908,6 +951,47 @@ class Preprocess():
         space = "{:15}{: <15.2f}{: <15.2f}{: <15.2f}{: <15.2f}"
         print(space.format('MR Mean & STD', mr_mean.mean(), mr_mean.std(), mr_std.mean(), mr_std.std()))
         print(space.format('CT Mean & STD', ct_mean.mean(), ct_mean.std(), ct_std.mean(), ct_std.std()))
+        print()
+
+        return
+
+    """
+    ====================================================================================================================
+    Visulize Brain and Skull Extraction Result
+    ====================================================================================================================
+    """
+    def visualize(self) -> None:
+
+        print()
+        print('=======================================================================================================')
+        print('Visulize Brain and Skull Extraction Result')
+        print('=======================================================================================================')
+        print()
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+
+            # Load Data
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
+            skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
+
+            # Binary Thresholding
+            brain = np.where(brain > 0, 1, 0)
+            skull = np.where(skull > -1000, 1, 0)
+
+            # Overlap Original Data and Brain or Skull Region
+            image = image + np.abs(brain * image.mean() * 5)
+            label = label + np.abs(skull * label.mean() * 3)
+
+            # Save Data
+            image = nib.Nifti1Image(image, np.eye(4))
+            nib.save(image, os.path.join(VS, self.images[i]))
+
+            label = nib.Nifti1Image(label, np.eye(4))
+            nib.save(label, os.path.join(VS, self.labels[i]))
         print()
 
         return
