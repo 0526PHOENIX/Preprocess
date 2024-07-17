@@ -464,6 +464,7 @@ class Preprocess():
             masks = []
             for j in range(192):
 
+                # Process Exception Case
                 if np.all(brain[:, :, j] == 0):
                     masks.append(np.zeros((192, 192)))
                     continue
@@ -480,7 +481,7 @@ class Preprocess():
                 # Find Largest Component
                 largest = np.argmax(sizes) + 1
 
-
+                # Select Largest Component
                 mask = (components == largest)
 
                 # Fill Holes in Mask
@@ -490,7 +491,7 @@ class Preprocess():
                 # Background
                 masks.append(np.where(mask, 1, 0))
 
-            # Stacking
+            # Stack + Transpose
             masks = np.stack(masks, axis = 0)
             masks = masks.transpose(1, 2, 0)
 
@@ -527,7 +528,7 @@ class Preprocess():
             # Buffer for Cutting Point
             point = np.zeros((192), dtype = 'int')
 
-            # Find Cutting Point
+            # Create Buffer List for Cutting Point
             for j in range(192):
                 for k in range(192):
 
@@ -535,7 +536,7 @@ class Preprocess():
                         point[j] = k
                         break
 
-            # Remove Zero Point
+            # Remove Zero Value
             point[point == 0] = 9999
             min_point = point.min()
             min_index = point.argmin()
@@ -738,7 +739,7 @@ class Preprocess():
         with open(os.path.join(DATA_2D, 'Slice.txt'), 'r') as file:
             lines = file.readlines()
 
-        # Get Specifice Order
+        # Get Specific Order
         for line in lines:
 
             # Split Out Numerical Part
