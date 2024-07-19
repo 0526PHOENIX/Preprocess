@@ -1,7 +1,27 @@
 # Preprocessing Pipeline
 
+## ***Note***
+Specific Data Behavior
+### MR
+---
+    * Artifact
+        - 14
 
-## **def main()**
+    * Especially High Maximum Value
+        - 11, 26
+### CT
+---
+    * Artifact
+        - 05, 06, 07, 08, 09, 10
+
+    * Especially Bright
+        - 02, 05, 06, 07, 08, 09, 10
+### Both
+---
+    * Direction
+        - 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+
+## ***def main()***
 Contral Overall Pipeline of Preprocessing
 ### Fundamental Process
 ---
