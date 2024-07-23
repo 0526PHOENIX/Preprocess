@@ -35,13 +35,14 @@ Contral Overall Pipeline of Preprocessing
     * Fill Holes in Brain Mask
     * Remove Useless Area
     * N4 Bias Correction
+    * MR Normalize
+### Skull Extraction
+---
+    * Extract Skull Region
 ### 3D Series to 2D Slices
 ---
     * Slice
     * Slice with Specific Order
-### Skull Extraction
----
-    * Extract Skull Region
 ### Check Data Behavior
 ---
     * Check Stastistic
@@ -249,63 +250,23 @@ N4 Bias Correction
         - .nii File
 
 
-## ***def slice()***
-Slice
+## ***def normalize()***
+MR Normalize
 
-    1. Shuffle MR, CT and HM File Name List (Python)
-        - Combine
-        - Shuffle
-        - Separate
-
-    2. Decide Dataset (Python)
-        - 1 ~ 20:   Training
-        - 21 ~ 24:  Validation
-        - 25 ~ 26:  Test
-
-    3. Load Data (NiBabel)
-        - MR, CT, HM
+    1. Load Data (NiBabel)
+        - MR
         - .nii File
-        - 3D
-
-    4. Find Lower and Upper Bound Index (NumPy)
-        - (# Meaningful Pixel) / (# Whole Pixel) > 0.075
-
-    5. Slice (NumPy)
-        - MR: (192, 192, 7)
-        - CT: (192, 192, 1)
-        - HM: (192, 192, 1)
-        - (X, Y, Z)
     
-    6. Transpose (NumPy)
-        - (Z, X, Y) 
+    2. MR Normalize (NumPy)
+        - Z-Score 
+        - Min-Max
+            - [0, 1]
+        - Linearly Scale
+            - [-1, 1]
 
-    7. Rotate (NumPy)
-        - Counterclockwise 90 Degree
-
-    8. Save Data (NiBabel)
-        - MR, CT, HM
-        - .nii File 
-        - 2D
-    
-    9. Print and Save the Order of Slicing (Python)
-
-    10. Reconstruct MR, CT and HM File Name List (Python)
-        - Ascending Sort
-
-
-## ***def specific()***
-Slice with Specific Order
-
-    1. Clear MR, CT and HM File Name List (Python)
-
-    2. Load "Slice.txt" (Python)
-
-    3. Get Specific Order (Python)
-        - Split the Line with Blank Space
-        - Select Numerical Part
-        - Append to File Name List
-    
-    4. Slice as Above Procedure
+    3. Save Data (NiBabel)
+        - MR
+        - .nii File
 
 
 ## ***def extract()***
@@ -341,6 +302,69 @@ Extract Skull Region
     7. Save Data (NiBabel)
         - Skull (SK)
         - .nii File
+
+
+## ***def slice()***
+Slice
+
+    1. Shuffle File Name List (Python)
+        - MR, CT, HM, BR, SK
+        - Combine
+        - Shuffle
+        - Separate
+
+    2. Decide Dataset (Python)
+        - 1 ~ 20:   Training
+        - 21 ~ 24:  Validation
+        - 25 ~ 26:  Test
+
+    3. Load Data (NiBabel)
+        - MR, CT, HM, BR, SK
+        - .nii File
+        - 3D
+
+    4. Find Lower and Upper Bound Index (NumPy)
+        - (# Meaningful Pixel) / (# Whole Pixel) > 0.075
+
+    5. Slice (NumPy)
+        - MR: (192, 192, 7)
+        - CT: (192, 192, 1)
+        - HM: (192, 192, 1)
+        - (X, Y, Z)
+    
+    6. Transpose (NumPy)
+        - (Z, X, Y) 
+
+    7. Rotate (NumPy)
+        - Counterclockwise 90 Degree
+
+    8. Save Data (NiBabel)
+        - MR, CT, HM, BR, SK
+        - .nii File 
+        - 2D
+    
+    9. Print and Save the Order of Slicing (Python)
+
+    10. Reconstruct File Name List (Python)
+        - MR, CT, HM, BR, SK
+        - Ascending Sort
+
+
+## ***def specific()***
+Slice with Specific Order
+
+    1. Clear File Name List (Python)
+        - MR, CT, HM, BR, SK
+
+    2. Load "Slice.txt" (Python)
+
+    3. Get Specific Order (Python)
+        - MR, CT, HM, BR, SK
+        - Split the Line with Blank Space
+        - Select Numerical Part
+        - Append to File Name List
+    
+    4. Slice as Above Procedure
 
 
 ## ***def statistic()***
