@@ -35,7 +35,7 @@ Contral Overall Pipeline of Preprocessing
     * Fill Holes in Brain Mask
     * Remove Useless Area
     * N4 Bias Correction
-    * MR Normalize
+    * Normalize
 ### Skull Extraction
 ---
     * Extract Skull Region
@@ -46,6 +46,7 @@ Contral Overall Pipeline of Preprocessing
 ### Check Data Behavior
 ---
     * Check Stastistic
+    * Check CT Behavior
     * Visualize Brain and Skull Extraction Result
 
 
@@ -254,7 +255,7 @@ N4 Bias Correction
 MR Normalize
 
     1. Load Data (NiBabel)
-        - MR
+        - MR, CT, HM
         - .nii File
     
     2. MR Normalize (NumPy)
@@ -264,8 +265,13 @@ MR Normalize
         - Linearly Scale
             - [-1, 1]
 
-    3. Save Data (NiBabel)
-        - MR
+    3. CT Normalize (Numpy)
+        - No.02 and No.05 ~ No.10
+        - Shift -1000 
+            - Non-Air Region
+
+    4. Save Data (NiBabel)
+        - MR, CT
         - .nii File
 
 
@@ -379,7 +385,7 @@ Check Statistic
     
     3. Save Mean and STD Value of MR and CT (Python)
 
-    5. Print Stastistic (NumPy + stats)
+    4. Print Stastistic (NumPy + stats)
         - File Name
         - Mean 
         - STD
@@ -388,11 +394,28 @@ Check Statistic
         - Skewness
         - Kurtosis
     
-    6. Print Additional Stastistic (NumPy)
+    5. Print Additional Stastistic (NumPy)
         - Mean of Mean
         - STD of Mean
         - Mean of STD
         - STD of STD
+
+
+## ***def checkct()***
+Check CT Behavior
+
+    1. Load Data (NiBabel)
+        - CT
+        - .nii File
+
+    2. Get Soft Tissue Intensity (Python)
+        - [96, 96, 144]
+
+    3. Remove Air Region (Python)
+
+    4. Print Stastistic (NumPy)
+        - Mean 
+        - Soft Tissue Intensity
 
 
 ## ***def visualize()***

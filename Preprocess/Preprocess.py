@@ -94,6 +94,7 @@ class Preprocess():
         # Problem Case
         self.direction = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
         self.artifacts = [5, 6, 7, 8, 9, 10]
+        self.highvalue = [2, 5, 6, 7, 8, 9, 10]
 
         return
 
@@ -109,52 +110,52 @@ class Preprocess():
         File Format
         ================================================================================================================
         """
-        # # Change File Format
-        # self.mat2nii()
+        # Change File Format
+        self.mat2nii()
 
         """
         ================================================================================================================
         Background
         ================================================================================================================
         """
-        # # Interpolate to (192, 192, 192) + Rotate
-        # self.transform()
-        # # Remove Background
-        # self.background()
-        # # Clip Intensity
-        # self.intensity()
+        # Interpolate to (192, 192, 192) + Rotate
+        self.transform()
+        # Remove Background
+        self.background()
+        # Clip Intensity
+        self.intensity()
 
         """
         ================================================================================================================
         Extract Brain Region + Remove Useless Region
         ================================================================================================================
         """
-        # # Extract Brain Region
-        # self.strip()
-        # # Fill Holes in Brain Mask
-        # self.fillhole()
-        # # Remove Useless Area
-        # self.remove()
-        # # N4 Bias Correction
-        # self.n4bias()
-        # # MR Normalize
-        # self.normalize()
+        # Extract Brain Region
+        self.strip()
+        # Fill Holes in Brain Mask
+        self.fillhole()
+        # Remove Useless Area
+        self.remove()
+        # N4 Bias Correction
+        self.n4bias()
+        # Normalize
+        self.normalize()
 
         """
         ================================================================================================================
         Extract Skull Region
         ================================================================================================================
         """
-        # # Extract Slull Region
-        # self.extract()
+        # Extract Slull Region
+        self.extract()
 
         """
         ================================================================================================================
         Slice + Check Orientation
         ================================================================================================================
         """
-        # # Slice
-        # self.slice()
+        # Slice
+        self.slice()
         # Slice with Specific Order
         self.specific()
 
@@ -163,10 +164,12 @@ class Preprocess():
         Check Data Behavior
         ================================================================================================================
         """
-        # # Check Statistic
-        # self.statistic()
-        # # Visulize Brain and Skull Extraction Result
-        # self.visualize()
+        # Check Statistic
+        self.statistic()
+        # Check CT Behavior
+        self.checkct()
+        # Visulize Brain and Skull Extraction Result
+        self.visualize()
 
         return
 
@@ -607,14 +610,14 @@ class Preprocess():
     
     """
     ====================================================================================================================
-    MR Normalize
+    Normalize
     ====================================================================================================================
     """
     def normalize(self) -> None:
 
         print()
         print('=======================================================================================================')
-        print('MR Normalize')
+        print('Normalize')
         print('=======================================================================================================')
         print()
 
@@ -624,7 +627,14 @@ class Preprocess():
 
             # Load Data
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
 
+            """
+            ============================================================================================================
+            Normalize MR
+            ============================================================================================================
+            """
             # Z-Score
             image -= image.mean()
             image /= image.std()
@@ -639,6 +649,20 @@ class Preprocess():
             # Save Data
             image = nib.Nifti1Image(image, np.eye(4))
             nib.save(image, os.path.join(MR, self.images[i]))
+
+            """
+            ============================================================================================================
+            Normalize CT
+            ============================================================================================================
+            """
+            if (i + 1) in self.highvalue:
+
+                # Shift -1000
+                label = np.where(hmask, label - 1000, -1000)
+
+                # Save Data
+                label = nib.Nifti1Image(label, np.eye(4))
+                nib.save(label, os.path.join(CT, self.labels[i]))
         print()
         
         return
@@ -998,9 +1022,9 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32').flatten()
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32').flatten()
 
-            # # Remove Air Region
-            # image = image[image > 0]
-            # label = label[label > -1000]
+            # Remove Air Region
+            image = image[image > 0]
+            label = label[label > -1000]
             
             # Save Mean and STD
             mr_mean.append(image.mean())
@@ -1029,6 +1053,41 @@ class Preprocess():
         space = "{:15}{: <15.2f}{: <15.2f}{: <15.2f}{: <15.2f}"
         print(space.format('MR Mean & STD', mr_mean.mean(), mr_mean.std(), mr_std.mean(), mr_std.std()))
         print(space.format('CT Mean & STD', ct_mean.mean(), ct_mean.std(), ct_std.mean(), ct_std.std()))
+        print()
+
+        return
+    
+    """
+    ====================================================================================================================
+    Check CT Behavior
+    ====================================================================================================================
+    """
+    def checkct(self) -> None:
+
+        print()
+        print('=======================================================================================================')
+        print('Check CT Behavior')
+        print('=======================================================================================================')
+        print()
+
+        print('-------------------------------------------------------------------------------------------------------')
+        print("{: ^25}{: ^40}{: ^40}".format('File Name', 'Mean Value of Non-Air Region', 'Soft Tissue Intensity'))
+        print('-------------------------------------------------------------------------------------------------------')
+
+        for i in range(self.len):
+
+            # Load Data
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+
+            tissue = label[96, 96, 144]
+
+            label = label.flatten()
+            label = label[label > -1000.0]
+
+            # Check Statistics
+            space = "{: ^25}{: ^40.2f}{: ^40.2f}"
+            print(space.format(self.labels[i], label.mean(), tissue))
+            print()
         print()
 
         return
