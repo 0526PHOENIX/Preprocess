@@ -31,17 +31,17 @@ import torch.nn.functional as F
 Global Constant
 ========================================================================================================================
 """
-MR_RAW = "C:/Users/PHOENIX/Desktop/Data/Data_Raw/MR"
-CT_RAW = "C:/Users/PHOENIX/Desktop/Data/Data_Raw/CT"
+MR_RAW = ""
+CT_RAW = ""
 
-MR = "C:/Users/PHOENIX/Desktop/Data/Data/MR"
-CT = "C:/Users/PHOENIX/Desktop/Data/Data/CT"
-HM = "C:/Users/PHOENIX/Desktop/Data/Data/HM"
-BR = "C:/Users/PHOENIX/Desktop/Data/Data/BR"
-SK = "C:/Users/PHOENIX/Desktop/Data/Data/SK"
-VS = "C:/Users/PHOENIX/Desktop/Data/Data/VS"
+MR = ""
+CT = ""
+HM = ""
+BR = ""
+SK = ""
+VS = ""
 
-DATA_2D = "C:/Users/PHOENIX/Desktop/Data/Data_2D"
+DATA_2D = ""
 
 PATH_LIST = [MR, CT, HM, BR, SK, VS, DATA_2D]
 
@@ -67,7 +67,7 @@ class Preprocess():
 
         # Data_2D File Path
         for dataset in ['Train', 'Val', 'Test']:
-            for data in ['MR', 'CT', 'HM', 'BR', 'SK']:
+            for data in ['MR', 'CT', 'HM']:
                 path = os.path.join(os.path.join(DATA_2D, dataset, data))
                 if not os.path.exists(path):
                     os.makedirs(path)
@@ -109,54 +109,54 @@ class Preprocess():
         File Format
         ================================================================================================================
         """
-        # # Change File Format
-        # self.mat2nii()
+        # Change File Format
+        self.mat2nii()
 
         """
         ================================================================================================================
         Background
         ================================================================================================================
         """
-        # # Interpolate to (192, 192, 192) + Rotate
-        # self.transform()
-        # # Remove Background
-        # self.background()
-        # # Clip Intensity
-        # self.intensity()
+        # Interpolate to (192, 192, 192) + Rotate
+        self.transform()
+        # Remove Background
+        self.background()
+        # Process Intensity
+        self.intensity()
 
         """
         ================================================================================================================
         Extract Brain Region + Remove Useless Region
         ================================================================================================================
         """
-        # # Extract Brain Region
-        # self.strip()
-        # # Fill Holes in Brain Mask
-        # self.fillhole()
-        # # Remove Useless Area
-        # self.remove()
-        # # N4 Bias Correction
-        # self.n4bias()
-        # # Normalize
-        # self.normalize()
+        # N4 Bias Correction
+        self.n4bias()
+        # Extract Brain Region
+        self.strip()
+        # Fill Holes in Brain Mask
+        self.fillhole()
+        # Remove Useless Area
+        self.remove()
 
         """
         ================================================================================================================
         Extract Skull Region
         ================================================================================================================
         """
-        # # Extract Slull Region
-        # self.extract()
+        # Extract Slull Region
+        self.extract()
 
         """
         ================================================================================================================
-        Slice + Check Orientation
+        Normalize + Slice
         ================================================================================================================
         """
-        # # Slice
-        # self.slice()
-        # # Slice with Specific Order
-        # self.specific()
+        # Normalize
+        self.normalize()
+        # Slice
+        self.slice()
+        # Slice with Specific Order
+        self.specific()
 
         """
         ================================================================================================================
@@ -167,11 +167,10 @@ class Preprocess():
         self.statistic()
         # Check CT Behavior
         self.checkct()
-        # # Visulize Brain and Skull Extraction Result
-        # self.visualize()
+        # Visulize Brain and Skull Extraction Result
+        self.visualize()
 
         return
-
     """
     ====================================================================================================================
     Change File Format
@@ -342,36 +341,63 @@ class Preprocess():
 
     """
     ====================================================================================================================
-    Clip Intensity
+    Process Intensity
     ====================================================================================================================
     """
     def intensity(self) -> None:
 
         print()
         print('=======================================================================================================')
-        print('Clip Intensity')
+        print('Process Intensity')
         print('=======================================================================================================')
         print()
 
-        """
-        ================================================================================================================
-        Clip CT Intensity + Find Appropriate MR Maximum Value
-        ================================================================================================================
-        """
-        # List of Maximum Value of MR
-        maximum = []
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Clip MR14 Intensity')
+        print('-------------------------------------------------------------------------------------------------------')
+        
+        # Buffer for Maximum Value of MR
+        mean = 0
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+            
+            # Load Data
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            
+            # Summarize MR Maximum Value
+            if (i + 1) != 14:
+                mean += image.max()
+        print()
+
+        # Load MR14
+        image = nib.load(os.path.join(MR, self.images[13])).get_fdata().astype('float32')
+
+        # Mean Value of Maximum Value
+        mean /= (self.len - 1)
+
+        # Clip Intensity
+        image = np.clip(image, 0, mean)
+
+        # Save Data
+        image = nib.Nifti1Image(image, np.eye(4))
+        nib.save(image, os.path.join(MR, self.images[13]))
+
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Clip CT Intensity + Deal With Extreme Case')
+        print('-------------------------------------------------------------------------------------------------------')
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
         for i in progress:
 
             # Load Data
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             
-            # Summarize MR Maximum Value
-            if (i + 1) != 14:
-                maximum.append(image.max())
+            # Deal With Extreme Case: Shift -1000
+            if (i + 1) in self.highvalue:
+                label -= 1000
 
             # Clip Intensity
             label = np.clip(label, -1000, 3000)
@@ -381,32 +407,39 @@ class Preprocess():
             nib.save(label, os.path.join(CT, self.labels[i]))
         print()
 
-        """
-        ================================================================================================================
-        Clip MR Intensity
-        ================================================================================================================
-        """
-        # Load Data
-        image = nib.load(os.path.join(MR, self.images[13])).get_fdata().astype('float32')
+        return
+    
+    """
+    ====================================================================================================================
+    N4 Bias Correction
+    ====================================================================================================================
+    """
+    def n4bias(self) -> None:
 
-        # Python List to Numpy Array
-        maximum = np.array(maximum)
+        print()
+        print('=======================================================================================================')
+        print('N4 Bias Correction')
+        print('=======================================================================================================')
+        print()
 
-        # Clip Intensity
-        image = np.clip(image, 0, maximum.mean())
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
 
-        # Save Data
-        image = nib.Nifti1Image(image, np.eye(4))
-        nib.save(image, os.path.join(MR, self.images[13]))
+            # Load Data
+            image = sitk.ReadImage(os.path.join(MR, self.images[i]))
+            image = sitk.Cast(image, sitk.sitkFloat32)
 
-        # Check Process
-        print('-------------------------------------------------------------------------------------------------------')
-        print('Clip MR11, MR14, MR26 Intensity')
-        print('-------------------------------------------------------------------------------------------------------')
+            # N4 Bias Correction
+            corrector = sitk.N4BiasFieldCorrectionImageFilter()
+            image = corrector.Execute(image)
+
+            # Save Data
+            sitk.WriteImage(image, os.path.join(MR, self.images[i]))
         print()
 
         return
-    
+
     """
     ====================================================================================================================
     Extract Brain Region
@@ -578,96 +611,6 @@ class Preprocess():
 
     """
     ====================================================================================================================
-    N4 Bias Correction
-    ====================================================================================================================
-    """
-    def n4bias(self) -> None:
-
-        print()
-        print('=======================================================================================================')
-        print('N4 Bias Correction')
-        print('=======================================================================================================')
-        print()
-
-        # Progress Bar
-        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
-        for i in progress:
-
-            # Load Data
-            image = sitk.ReadImage(os.path.join(MR, self.images[i]))
-            image = sitk.Cast(image, sitk.sitkFloat32)
-
-            # N4 Bias Correction
-            corrector = sitk.N4BiasFieldCorrectionImageFilter()
-            image = corrector.Execute(image)
-
-            # Save Data
-            sitk.WriteImage(image, os.path.join(MR, self.images[i]))
-        print()
-
-        return
-    
-    """
-    ====================================================================================================================
-    Normalize
-    ====================================================================================================================
-    """
-    def normalize(self) -> None:
-
-        print()
-        print('=======================================================================================================')
-        print('Normalize')
-        print('=======================================================================================================')
-        print()
-
-        # Progress Bar
-        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
-        for i in progress:
-
-            # Load Data
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
-            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
-
-            """
-            ============================================================================================================
-            Normalize MR
-            ============================================================================================================
-            """
-            # Z-Score
-            image -= image.mean()
-            image /= image.std()
-
-            # [0, 1]
-            image -= image.min()
-            image /= image.max()
-
-            # [-1, 1]
-            image = (image * 2) - 1
-
-            # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i]))
-
-            """
-            ============================================================================================================
-            Normalize CT
-            ============================================================================================================
-            """
-            if (i + 1) in self.highvalue:
-
-                # Shift -1000
-                label = np.where(hmask, label - 1000, -1000)
-
-                # Save Data
-                label = nib.Nifti1Image(label, np.eye(4))
-                nib.save(label, os.path.join(CT, self.labels[i]))
-        print()
-        
-        return
-
-    """
-    ====================================================================================================================
     Extract Skull Region
     ====================================================================================================================
     """
@@ -725,6 +668,44 @@ class Preprocess():
 
     """
     ====================================================================================================================
+    Normalize MR
+    ====================================================================================================================
+    """
+    def normalize(self) -> None:
+
+        print()
+        print('=======================================================================================================')
+        print('Normalize MR')
+        print('=======================================================================================================')
+        print()
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+
+            # Load Data
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+
+            # Z-Score
+            image -= image.mean()
+            image /= image.std()
+
+            # [0, 1]
+            image -= image.min()
+            image /= image.max()
+
+            # [-1, 1]
+            image = (image * 2) - 1
+
+            # Save Data
+            image = nib.Nifti1Image(image, np.eye(4))
+            nib.save(image, os.path.join(MR, self.images[i]))
+        print()
+        
+        return
+
+    """
+    ====================================================================================================================
     Slice
     ====================================================================================================================
     """
@@ -737,13 +718,13 @@ class Preprocess():
         print()
 
         # Combine File Name List
-        buffer = list(zip(self.images, self.labels, self.hmasks, self.brains, self.skulls))
+        buffer = list(zip(self.images, self.labels, self.hmasks))
 
         # Random Shuffle Simultaneously
         random.shuffle(buffer)
 
         # Separate File Name List
-        self.images, self.labels, self.hmasks, self.brains, self.skulls = map(list, zip(*buffer))
+        self.images, self.labels, self.hmasks = map(list, zip(*buffer))
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -760,8 +741,6 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
-            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
-            skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
 
             # Find Blank Slice Index
             lower = -1
@@ -787,22 +766,11 @@ class Preprocess():
                 mr = image[:, :, j - 3 : j + 3 + 1]
                 ct = label[:, :, j : j + 1]
                 hm = hmask[:, :, j : j + 1]
-                br = brain[:, :, j : j + 1]
-                sk = skull[:, :, j : j + 1]
 
-                # Transpose (Z, X, Y)
-                mr = mr.transpose(2, 0, 1)
-                ct = ct.transpose(2, 0, 1)
-                hm = hm.transpose(2, 0, 1)
-                br = br.transpose(2, 0, 1)
-                sk = sk.transpose(2, 0, 1)
-
-                # Rotate
-                mr = np.rot90(mr, k = 1, axes = (1, 2))
-                ct = np.rot90(ct, k = 1, axes = (1, 2))
-                hm = np.rot90(hm, k = 1, axes = (1, 2))
-                br = np.rot90(br, k = 1, axes = (1, 2))
-                sk = np.rot90(sk, k = 1, axes = (1, 2))
+                # Transpose (Z, X, Y) + Rotate
+                mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                ct = np.rot90(ct.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                hm = np.rot90(hm.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
                 mr = nib.Nifti1Image(mr, np.eye(4))
@@ -813,12 +781,6 @@ class Preprocess():
                 
                 hm = nib.Nifti1Image(hm, np.eye(4))
                 nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(j) + '.nii'))
-
-                br = nib.Nifti1Image(br, np.eye(4))
-                nib.save(br, os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(j) + '.nii'))
-                
-                sk = nib.Nifti1Image(sk, np.eye(4))
-                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(j) + '.nii'))
         print()
 
         # Check Training, Validation, Testing Set
@@ -848,8 +810,6 @@ class Preprocess():
         self.images.sort()
         self.labels.sort()
         self.hmasks.sort()
-        self.brains.sort()
-        self.skulls.sort()
 
         return
 
@@ -870,8 +830,6 @@ class Preprocess():
         self.images.clear()
         self.labels.clear()
         self.hmasks.clear()
-        self.brains.clear() 
-        self.skulls.clear() 
 
         # Open File of Specifice Order
         with open(os.path.join(DATA_2D, 'Slice.txt'), 'r') as file:
@@ -889,9 +847,6 @@ class Preprocess():
                     self.images.append('MR' + str(num) + '.nii')
                     self.labels.append('CT' + str(num) + '.nii')
                     self.hmasks.append('HM' + str(num) + '.nii')
-                    self.brains.append('BR' + str(num) + '.nii')
-                    self.skulls.append('SK' + str(num) + '.nii')
-
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -908,8 +863,6 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
-            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
-            skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
 
             # Find Blank Slice Index
             lower = -1
@@ -935,22 +888,11 @@ class Preprocess():
                 mr = image[:, :, j - 3 : j + 3 + 1]
                 ct = label[:, :, j : j + 1]
                 hm = hmask[:, :, j : j + 1]
-                br = brain[:, :, j : j + 1]
-                sk = skull[:, :, j : j + 1]
 
-                # Transpose (Z, X, Y)
-                mr = mr.transpose(2, 0, 1)
-                ct = ct.transpose(2, 0, 1)
-                hm = hm.transpose(2, 0, 1)
-                br = br.transpose(2, 0, 1)
-                sk = sk.transpose(2, 0, 1)
-
-                # Rotate
-                mr = np.rot90(mr, k = 1, axes = (1, 2))
-                ct = np.rot90(ct, k = 1, axes = (1, 2))
-                hm = np.rot90(hm, k = 1, axes = (1, 2))
-                br = np.rot90(br, k = 1, axes = (1, 2))
-                sk = np.rot90(sk, k = 1, axes = (1, 2))
+                # Transpose (Z, X, Y) + Rotate
+                mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                ct = np.rot90(ct.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                hm = np.rot90(hm.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
                 mr = nib.Nifti1Image(mr, np.eye(4))
@@ -961,12 +903,6 @@ class Preprocess():
                 
                 hm = nib.Nifti1Image(hm, np.eye(4))
                 nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(j) + '.nii'))
-
-                br = nib.Nifti1Image(br, np.eye(4))
-                nib.save(br, os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(j) + '.nii'))
-                
-                sk = nib.Nifti1Image(sk, np.eye(4))
-                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(j) + '.nii'))
         print()
 
         # Check Training, Validation, Testing Set
@@ -990,8 +926,6 @@ class Preprocess():
         self.images.sort()
         self.labels.sort()
         self.hmasks.sort()
-        self.brains.sort()
-        self.skulls.sort()
 
     """
     ====================================================================================================================
@@ -1026,7 +960,7 @@ class Preprocess():
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32').flatten()
 
             # Remove Air Region
-            image = image[image > 0]
+            image = image[image > -1]
             label = label[label > -1000]
             
             # Save Mean and STD
