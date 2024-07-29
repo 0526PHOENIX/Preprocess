@@ -110,54 +110,54 @@ class Preprocess():
         File Format
         ================================================================================================================
         """
-        # Change File Format
-        self.mat2nii()
+        # # Change File Format
+        # self.mat2nii()
 
         """
         ================================================================================================================
         Background
         ================================================================================================================
         """
-        # Interpolate to (192, 192, 192) + Rotate
-        self.transform()
-        # Remove Background
-        self.background()
-        # Process Intensity
-        self.intensity()
+        # # Interpolate to (192, 192, 192) + Rotate
+        # self.transform()
+        # # Remove Background
+        # self.background()
+        # # Process Intensity
+        # self.intensity()
 
         """
         ================================================================================================================
         Extract Brain Region + Remove Useless Region
         ================================================================================================================
         """
-        # N4 Bias Correction
-        self.n4bias()
-        # Extract Brain Region
-        self.strip()
-        # Fill Holes in Brain Mask
-        self.fillhole()
-        # Remove Useless Area
-        self.remove()
+        # # N4 Bias Correction
+        # self.n4bias()
+        # # Extract Brain Region
+        # self.strip()
+        # # Fill Holes in Brain Mask
+        # self.fillhole()
+        # # Remove Useless Area
+        # self.remove()
 
         """
         ================================================================================================================
         Extract Skull Region
         ================================================================================================================
         """
-        # Extract Slull Region
-        self.extract()
+        # # Extract Slull Region
+        # self.extract()
 
         """
         ================================================================================================================
         Normalize + Slice
         ================================================================================================================
         """
-        # Normalize
-        self.normalize()
-        # Slice
-        self.slice()
-        # Slice with Specific Order
-        self.specific()
+        # # Normalize
+        # self.normalize()
+        # # Slice
+        # self.slice()
+        # # Slice with Specific Order
+        # self.specific()
 
         return
 
