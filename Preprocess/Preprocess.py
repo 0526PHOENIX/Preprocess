@@ -67,7 +67,7 @@ class Preprocess():
 
         # Data_2D File Path
         for dataset in ['Train', 'Val', 'Test']:
-            for data in ['MR', 'CT', 'HM']:
+            for data in ['MR', 'CT', 'HM', 'SK']:
                 path = os.path.join(os.path.join(DATA_2D, dataset, data))
                 if not os.path.exists(path):
                     os.makedirs(path)
@@ -109,66 +109,66 @@ class Preprocess():
         File Format
         ================================================================================================================
         """
-        # Change File Format
-        self.mat2nii()
+        # # Change File Format
+        # self.mat2nii()
 
         """
         ================================================================================================================
         Background
         ================================================================================================================
         """
-        # Interpolate + Rotate
-        self.transform()
-        # Remove Background
-        self.background()
-        # Process Intensity
-        self.intensity()
+        # # Interpolate + Rotate
+        # self.transform()
+        # # Remove Background
+        # self.background()
+        # # Process Intensity
+        # self.intensity()
 
         """
         ================================================================================================================
         Extract Brain Region + Remove Useless Region
         ================================================================================================================
         """
-        # N4 Bias Correction
-        self.n4bias()
-        # Extract Brain Region
-        self.strip()
-        # Fill Holes in Brain Mask
-        self.fillhole()
-        # Remove Useless Area
-        self.remove()
+        # # N4 Bias Correction
+        # self.n4bias()
+        # # Extract Brain Region
+        # self.strip()
+        # # Fill Holes in Brain Mask
+        # self.fillhole()
+        # # Remove Useless Area
+        # self.remove()
 
         """
         ================================================================================================================
         Extract Skull Region
         ================================================================================================================
         """
-        # Extract Slull Region
-        self.extract()
+        # # Extract Slull Region
+        # self.extract()
 
         """
         ================================================================================================================
         Normalize + Slice
         ================================================================================================================
         """
-        # MR Normalize
-        self.normalize()
-        # Slice
-        self.slice()
-        # Slice with Specific Order
-        self.specific()
+        # # MR Normalize
+        # self.normalize()
+        # # Slice
+        # self.slice()
+        # # Slice with Specific Order
+        # self.specific()
 
         """
         ================================================================================================================
         Check Data Behavior
         ================================================================================================================
         """
-        # Check Statistic
-        self.statistic()
-        # Check CT Behavior
-        self.checkct()
-        # Visulize Brain and Skull Extraction Result
-        self.visualize()
+        # # Check Statistic
+        # self.statistic()
+        # # Check CT Behavior
+        # self.checkct()
+        # # Visulize Brain and Skull Extraction Result
+        # self.visualize()
 
         return
     """
@@ -718,13 +718,13 @@ class Preprocess():
         print()
 
         # Combine File Name List
-        buffer = list(zip(self.images, self.labels, self.hmasks))
+        buffer = list(zip(self.images, self.labels, self.hmasks, self.skulls))
 
         # Random Shuffle Simultaneously
         random.shuffle(buffer)
 
         # Separate File Name List
-        self.images, self.labels, self.hmasks = map(list, zip(*buffer))
+        self.images, self.labels, self.hmasks, self.skulls = map(list, zip(*buffer))
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -741,6 +741,7 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
+            skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
 
             # Find Blank Slice Index
             lower = -1
@@ -766,11 +767,13 @@ class Preprocess():
                 mr = image[:, :, j - 3 : j + 3 + 1]
                 ct = label[:, :, j : j + 1]
                 hm = hmask[:, :, j : j + 1]
+                sk = skull[:, :, j : j + 1]
 
                 # Transpose (Z, X, Y) + Rotate
                 mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 ct = np.rot90(ct.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 hm = np.rot90(hm.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                sk = np.rot90(sk.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
                 mr = nib.Nifti1Image(mr, np.eye(4))
@@ -781,6 +784,9 @@ class Preprocess():
                 
                 hm = nib.Nifti1Image(hm, np.eye(4))
                 nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(j) + '.nii'))
+
+                sk = nib.Nifti1Image(sk, np.eye(4))
+                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(j) + '.nii'))
         print()
 
         # Check Training, Validation, Testing Set
@@ -810,6 +816,7 @@ class Preprocess():
         self.images.sort()
         self.labels.sort()
         self.hmasks.sort()
+        self.skulls.sort()
 
         return
 
@@ -830,6 +837,7 @@ class Preprocess():
         self.images.clear()
         self.labels.clear()
         self.hmasks.clear()
+        self.skulls.clear()
 
         # Open File of Specifice Order
         with open(os.path.join(DATA_2D, 'Slice.txt'), 'r') as file:
@@ -847,6 +855,7 @@ class Preprocess():
                     self.images.append('MR' + str(num) + '.nii')
                     self.labels.append('CT' + str(num) + '.nii')
                     self.hmasks.append('HM' + str(num) + '.nii')
+                    self.skulls.append('SK' + str(num) + '.nii')
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -863,6 +872,7 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
+            skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
 
             # Find Blank Slice Index
             lower = -1
@@ -888,11 +898,13 @@ class Preprocess():
                 mr = image[:, :, j - 3 : j + 3 + 1]
                 ct = label[:, :, j : j + 1]
                 hm = hmask[:, :, j : j + 1]
+                sk = skull[:, :, j : j + 1]
 
                 # Transpose (Z, X, Y) + Rotate
                 mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 ct = np.rot90(ct.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 hm = np.rot90(hm.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                sk = np.rot90(sk.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
                 mr = nib.Nifti1Image(mr, np.eye(4))
@@ -903,6 +915,9 @@ class Preprocess():
                 
                 hm = nib.Nifti1Image(hm, np.eye(4))
                 nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(j) + '.nii'))
+
+                sk = nib.Nifti1Image(sk, np.eye(4))
+                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(j) + '.nii'))
         print()
 
         # Check Training, Validation, Testing Set
@@ -926,6 +941,7 @@ class Preprocess():
         self.images.sort()
         self.labels.sort()
         self.hmasks.sort()
+        self.skulls.sort()
 
     """
     ====================================================================================================================

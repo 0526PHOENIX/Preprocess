@@ -316,7 +316,7 @@ MR Normalize
 Slice
 
     1. Shuffle File Name List (Python)
-        - MR, CT, HM
+        - MR, CT, HM, SK
         - Combine
         - Shuffle
         - Separate
@@ -327,7 +327,7 @@ Slice
         - 25 ~ 26:  Test
 
     3. Load Data (NiBabel)
-        - MR, CT, HM
+        - MR, CT, HM, SK
         - .nii File
         - 3D
 
@@ -347,14 +347,14 @@ Slice
         - Counterclockwise 90 Degree
 
     8. Save Data (NiBabel)
-        - MR, CT, HM
+        - MR, CT, HM, SK
         - .nii File 
         - 2D
     
     9. Print and Save the Order of Slicing (Python)
 
     10. Reconstruct File Name List (Python)
-        - MR, CT, HM
+        - MR, CT, HM, SK
         - Ascending Sort
 
 
@@ -362,12 +362,12 @@ Slice
 Slice with Specific Order
 
     1. Clear File Name List (Python)
-        - MR, CT, HM
+        - MR, CT, HM, SK
 
     2. Load "Slice.txt" (Python)
 
     3. Get Specific Order (Python)
-        - MR, CT, HM
+        - MR, CT, HM, SK
         - Split the Line with Blank Space
         - Select Numerical Part
         - Append to File Name List
