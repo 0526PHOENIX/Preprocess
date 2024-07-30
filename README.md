@@ -28,19 +28,19 @@ Contral Overall Pipeline of Preprocessing
     * Change File Format
     * Interpolate + Rotate
     * Remove Background
-    * Clip Intensity
-### Brain Extraction
+    * Process Intensity
+### Extract Brain Region + Remove Useless Region
 ---
+    * N4 Bias Correction
     * Extract Brain Region
     * Fill Holes in Brain Mask
     * Remove Useless Area
-    * N4 Bias Correction
-    * Normalize
-### Skull Extraction
+### Extract Skull Region
 ---
     * Extract Skull Region
-### 3D Series to 2D Slices
+### Normalize + Slice
 ---
+    * MR Normalize
     * Slice
     * Slice with Specific Order
 ### Check Data Behavior
@@ -114,6 +114,8 @@ Remove Background
     
     5. Apply Mask by Setting to Air Value (NumPy)
         - Out of Head Mask
+        - MR: 0
+        - CT: -1000
 
     6. Save Data (NiBabel)
         - MR, CT, Head Mask (HM)
@@ -121,10 +123,10 @@ Remove Background
 
 
 ## ***def intensity()***
-Clip Intensity
+Process Intensity
 ### MR
 ---
-Only Deal with MR Series with Artiface: MR14
+Clip MR14 Intensity
 
     1. Load Data (NiBabel)
         - MR
@@ -133,8 +135,7 @@ Only Deal with MR Series with Artiface: MR14
     2. Sum Up the Maximum Value (Python)
         - Except for MR14
 
-    4. Clip Intensity (NumPy)
-        - MR14
+    4. Clip MR14 Intensity (NumPy)
         - Min: 0
         - Max: Mean Value of Summation
     
@@ -143,16 +144,35 @@ Only Deal with MR Series with Artiface: MR14
         - .nii File
 ### CT
 ---
+Clip CT Intensity + Deal With Extreme Case
+
     1. Load Data (NiBabel)
         - CT
         - .nii File
 
-    2. Clip Intensity (NumPy)
+    2. Deal With Extreme Case (Python)
+        - Shift -1000
+
+    3. Clip Intensity (NumPy)
         - Min: -1000
         - Max: 3000
 
-    3. Save Data (NiBabel)
+    4. Save Data (NiBabel)
         - CT
+        - .nii File
+
+
+## ***def n4bias()***
+N4 Bias Correction
+
+    1. Load Data (SimpleITK)
+        - MR
+        - .nii File
+    
+    2. N4 Bias Correction (SimpleITK)
+
+    3. Save Data (SimpleITK)
+        - MR
         - .nii File
 
 
@@ -164,8 +184,7 @@ Extract Brain Region
         - .nii File
 
     2. Brain Extraction (ANTsPyNet)
-        - Modality
-            -T1
+        - Modality: T1
 
     3. Save Data (ANTsPy)
         - Brain Mask (BR)
@@ -237,44 +256,6 @@ Remove Useless Area
         - .nii File
 
 
-## ***def n4bias()***
-N4 Bias Correction
-
-    1. Load Data (SimpleITK)
-        - MR
-        - .nii File
-    
-    2. N4 Bias Correction (SimpleITK)
-
-    3. Save Data (SimpleITK)
-        - MR
-        - .nii File
-
-
-## ***def normalize()***
-MR Normalize
-
-    1. Load Data (NiBabel)
-        - MR, CT, HM
-        - .nii File
-    
-    2. MR Normalize (NumPy)
-        - Z-Score 
-        - Min-Max
-            - [0, 1]
-        - Linearly Scale
-            - [-1, 1]
-
-    3. CT Normalize (Numpy)
-        - No.02 and No.05 ~ No.10
-        - Shift -1000 
-            - Non-Air Region
-
-    4. Save Data (NiBabel)
-        - MR, CT
-        - .nii File
-
-
 ## ***def extract()***
 Extract Skull Region
 
@@ -310,11 +291,32 @@ Extract Skull Region
         - .nii File
 
 
+## ***def normalize()***
+MR Normalize
+
+    1. Load Data (NiBabel)
+        - MR
+        - .nii File
+    
+    2. MR Normalize (NumPy)
+        - Z-Score
+            - Mean = 0
+            - STD = 1
+        - Min-Max
+            - [0, 1]
+        - Linearly Scale
+            - [-1, 1]
+
+    3. Save Data (NiBabel)
+        - MR
+        - .nii File
+
+
 ## ***def slice()***
 Slice
 
     1. Shuffle File Name List (Python)
-        - MR, CT, HM, BR, SK
+        - MR, CT, HM
         - Combine
         - Shuffle
         - Separate
@@ -325,7 +327,7 @@ Slice
         - 25 ~ 26:  Test
 
     3. Load Data (NiBabel)
-        - MR, CT, HM, BR, SK
+        - MR, CT, HM
         - .nii File
         - 3D
 
@@ -345,14 +347,14 @@ Slice
         - Counterclockwise 90 Degree
 
     8. Save Data (NiBabel)
-        - MR, CT, HM, BR, SK
+        - MR, CT, HM
         - .nii File 
         - 2D
     
     9. Print and Save the Order of Slicing (Python)
 
     10. Reconstruct File Name List (Python)
-        - MR, CT, HM, BR, SK
+        - MR, CT, HM
         - Ascending Sort
 
 
@@ -360,12 +362,12 @@ Slice
 Slice with Specific Order
 
     1. Clear File Name List (Python)
-        - MR, CT, HM, BR, SK
+        - MR, CT, HM
 
     2. Load "Slice.txt" (Python)
 
     3. Get Specific Order (Python)
-        - MR, CT, HM, BR, SK
+        - MR, CT, HM
         - Split the Line with Blank Space
         - Select Numerical Part
         - Append to File Name List
@@ -391,8 +393,6 @@ Check Statistic
         - STD
         - Minimum
         - Maximum
-        - Skewness
-        - Kurtosis
     
     5. Print Additional Stastistic (NumPy)
         - Mean of Mean
