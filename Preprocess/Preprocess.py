@@ -171,6 +171,7 @@ class Preprocess():
         # self.visualize()
 
         return
+    
     """
     ====================================================================================================================
     Change File Format
@@ -960,15 +961,17 @@ class Preprocess():
         title = "{:<20}{:<20}{:<20}{:<20}{:<20}"
         space = "{:<20}{:<20.2f}{:<20.2f}{:<20.2f}{:<20.2f}"
 
+        # Title
         print('-------------------------------------------------------------------------------------------------------')
         print(title.format('File Name', 'Mean', 'STD', 'Min', 'Max'))
         print('-------------------------------------------------------------------------------------------------------')
 
-        # List of Mean and STD of MR and CT
+        # Statistic Buffer
         mr_mean = []
         ct_mean = []
         mr_std = []
         ct_std = []
+
         for i in range(self.len):
 
             # Load Data
@@ -977,7 +980,7 @@ class Preprocess():
 
             # Remove Air Region
             image = image[image > -1]
-            label = label[label > -1000]
+            label = label[label > -250]
             
             # Save Mean and STD
             mr_mean.append(image.mean())
@@ -1025,6 +1028,7 @@ class Preprocess():
         title = "{:<20}{:<40}{:<40}"
         space = "{:<20}{:<40.2f}{:<40.2f}"
 
+        # Title
         print('-------------------------------------------------------------------------------------------------------')
         print(title.format('File Name', 'Mean Value of Non-Air Region', 'Soft Tissue Intensity'))
         print('-------------------------------------------------------------------------------------------------------')
@@ -1034,10 +1038,12 @@ class Preprocess():
             # Load Data
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
 
+            # Soft Tissue Intensity
             tissue = label[96, 96, 144]
 
+            # Remove Air Region
             label = label.flatten()
-            label = label[label > -1000.0]
+            label = label[label > -250]
 
             # Check Statistics
             print(space.format(self.labels[i], label.mean(), tissue))
