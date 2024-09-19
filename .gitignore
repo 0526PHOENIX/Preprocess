@@ -2,7 +2,8 @@
 /Data_Raw
 /Data
 /Data_2D
-/Temp
+
+/Test/Data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
