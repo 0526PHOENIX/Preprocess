@@ -84,14 +84,14 @@ class Preprocess():
     """
     def main(self) -> None:
 
-        # # Change File Format
-        # self.mat2nii()
+        # Change File Format
+        self.mat2nii()
 
         # Crop Image
         self.cropping()
 
-        # Check Statistic
-        self.statistic()
+        # # Check Statistic
+        # self.statistic()
 
         return
     
