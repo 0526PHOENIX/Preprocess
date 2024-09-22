@@ -31,11 +31,11 @@ import torch.nn.functional as F
 Global Constant
 ========================================================================================================================
 """
-MR_RAW = "C:/Users/PHOENIX/Desktop/Data/Data_Raw/MR"
-CT_RAW = "C:/Users/PHOENIX/Desktop/Data/Data_Raw/CT"
+MR_RAW = "C:/Users/user/Desktop/Data/Data_Raw/MR"
+CT_RAW = "C:/Users/user/Desktop/Data/Data_Raw/CT"
 
-MR = "C:/Users/PHOENIX/Desktop/Data/Test/Data/MR"
-CT = "C:/Users/PHOENIX/Desktop/Data/Test/Data/CT"
+MR = "C:/Users/user/Desktop/Data/Test/Data/MR"
+CT = "C:/Users/user/Desktop/Data/Test/Data/CT"
 
 PATH_LIST = [MR, CT]
 
