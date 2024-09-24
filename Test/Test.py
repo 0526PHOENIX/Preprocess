@@ -36,8 +36,14 @@ CT_RAW = "C:/Users/user/Desktop/Data/Data_Raw/CT"
 
 MR = "C:/Users/user/Desktop/Data/Test/Data/MR"
 CT = "C:/Users/user/Desktop/Data/Test/Data/CT"
+HM = "C:/Users/user/Desktop/Data/Test/Data/HM"
+BR = ""
+SK = ""
+VS = ""
 
-PATH_LIST = [MR, CT]
+DATA_2D = ""
+
+PATH_LIST = [MR, CT, HM]
 
 
 """
@@ -63,6 +69,9 @@ class Preprocess():
         self.images = os.listdir(MR)
         self.labels = os.listdir(CT)
 
+        if os.listdir(HM):
+            self.hmasks = os.listdir(HM)
+
         # Check File Number
         if len(self.images) != len(self.labels):
             raise ValueError('\n', 'Unequal Amount of images and labels.', '\n')
@@ -73,6 +82,7 @@ class Preprocess():
         # Problem Case
         self.direction = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
         self.artifacts = [5, 6, 7, 8, 9, 10]
+        self.brainhole = [25]
         self.highvalue = [2, 5, 6, 7, 8, 9, 10]
 
         return
@@ -87,8 +97,11 @@ class Preprocess():
         # Change File Format
         self.mat2nii()
 
-        # Crop Image
-        self.cropping()
+        # # Crop Image
+        # self.cropping()
+
+        # Remove Background
+        self.background()
 
         # # Check Statistic
         # self.statistic()
@@ -155,26 +168,22 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
 
-            if (image.shape[0] > 192 and image.shape[1] > 192 and image.shape[2] > 192):
+            # if (image.shape[0] > 192 and image.shape[1] > 192 and image.shape[2] > 192):
+
+            #     mid_x = image.shape[0] // 2
+            #     mid_y = image.shape[1] // 2
+            #     mid_z = image.shape[2] // 2
+
+            #     image = image[mid_x - 96 : mid_x + 96, mid_y - 96 : mid_y + 96, mid_z - 96 : mid_z + 96]
+            #     label = label[mid_x - 96 : mid_x + 96, mid_y - 96 : mid_y + 96, mid_z - 96 : mid_z + 96]
+
+            if (image.shape[0] > 192 and image.shape[1] > 192):
 
                 mid_x = image.shape[0] // 2
                 mid_y = image.shape[1] // 2
-                mid_z = image.shape[2] // 2
 
-                image = image[mid_x - 96 : mid_x + 96, mid_y - 96 : mid_y + 96, mid_z - 96 : mid_z + 96]
-                label = label[mid_x - 96 : mid_x + 96, mid_y - 96 : mid_y + 96, mid_z - 96 : mid_z + 96]
-
-            # # Numpy Array to Troch Tensor
-            # image = torch.from_numpy(image)
-            # label = torch.from_numpy(label)
-
-            # # Trilinear Interpolation: (192, 192, 192)
-            # image = F.interpolate(image[None, None, ...], size = (192, 192, 192), mode = 'trilinear')[0, 0, ...]
-            # label = F.interpolate(label[None, None, ...], size = (192, 192, 192), mode = 'trilinear')[0, 0, ...]
-
-            # # Troch Tensor to Numpy Array
-            # image = image.numpy()
-            # label = label.numpy()
+                image = image[mid_x - 96 : mid_x + 96, mid_y - 96 : mid_y + 96, :]
+                label = label[mid_x - 96 : mid_x + 96, mid_y - 96 : mid_y + 96, :]
 
             # Rotate
             if (i + 1) not in self.direction:
@@ -191,6 +200,91 @@ class Preprocess():
         
         return
     
+    """
+    ====================================================================================================================
+    Remove Background
+    ====================================================================================================================
+    """
+    def background(self) -> None:
+
+        print()
+        print('=======================================================================================================')
+        print('Remove Background')
+        print('=======================================================================================================')
+        print()
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+
+            # Load Data
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+
+            # Flatten MR Data
+            flat = image.flatten()
+
+            # Sort in Ascending Order
+            sorted = np.sort(flat)
+
+            # Get Cumulative Distribution
+            dis = np.cumsum(sorted)
+            dis = dis / dis[-1]
+
+            # Get Threshold
+            if (i + 1) in self.artifacts:
+                # Specific Case (CT Artifect)
+                index = np.where(dis <= 0.200)[0][-1]
+                value = sorted[index]
+            elif (i + 1) in self.brainhole:
+                # Specific Case (MR Brain Hole)
+                index = np.where(dis <= 0.075)[0][-1]
+                value = sorted[index]
+            else:
+                # General Case
+                index = np.where(dis <= 0.125)[0][-1]
+                value = sorted[index]
+
+            # Thresholding
+            binary = (image > value)
+
+            # Get Connective Component
+            components, features = ndimage.label(binary)
+
+            # Compute Size of Each Component
+            sizes = ndimage.sum(binary, components, range(1, features + 1))
+
+            # Find Largest Component
+            largest = np.argmax(sizes) + 1
+
+            # Slect Largest Component
+            hmask = (components == largest)
+
+            # Fill Holes in Mask
+            hmask = ndimage.binary_dilation(hmask, np.ones((25, 25, 25)))
+            hmask = ndimage.binary_erosion(hmask, np.ones((25, 25, 25)))
+
+            # Apply Mask
+            image = np.where(hmask, image, 0)
+            label = np.where(hmask, label, -1000)
+            hmask = np.where(hmask, 1, 0)
+
+            # Save Data
+            image = nib.Nifti1Image(image, np.eye(4))
+            nib.save(image, os.path.join(MR, self.images[i]))
+
+            label = nib.Nifti1Image(label, np.eye(4))
+            nib.save(label, os.path.join(CT, self.labels[i]))
+
+            hmask = nib.Nifti1Image(hmask, np.eye(4))
+            nib.save(hmask, os.path.join(HM, 'HM' + self.images[i][2:]))
+        print()
+
+        # Get New File Name
+        self.hmasks = os.listdir(HM)
+
+        return
+
     """
     ====================================================================================================================
     Check Statistic
