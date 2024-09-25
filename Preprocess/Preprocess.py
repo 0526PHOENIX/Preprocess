@@ -292,7 +292,7 @@ class Preprocess():
 
             # Get Threshold
             if (i + 1) in self.artifacts:
-                # Specific Case
+                # Specific Case (CT Artifect)
                 index = np.where(dis <= 0.200)[0][-1]
                 value = sorted[index]
             else:
