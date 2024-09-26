@@ -18,7 +18,7 @@ Specific Data Behavior
         - 02, 05, 06, 07, 08, 09, 10
 ### Both
 ---
-    * Direction
+    * Different Direction
         - 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
 
 ## ***def main()***
@@ -69,15 +69,18 @@ Interpolate + Rotate
         - MR, CT 
         - .nii File
 
-    2. Interpolate (Torch)
-        - Trilinear Interpolation
-        - (192, 192, 192)
+    2. Compute Z-Axis Scale Factor (Python)
+        - Factor = 192 / X or Y-Axis Size
 
-    3. Rotate (NumPy)
+    3. Interpolate (Torch)
+        - Trilinear Interpolation
+        - (192, 192, Z-Axis Size * Factor)
+
+    4. Rotate (NumPy)
         - No.1 ~ No.10 and No.21 ~ No.26
         - Counterclockwise 270 Degree
     
-    4. Save Data (NiBabel)
+    5. Save Data (NiBabel)
         - MR, CT
         - .nii File 
 
@@ -135,11 +138,11 @@ Clip MR14 Intensity
     2. Sum Up the Maximum Value (Python)
         - Except for MR14
 
-    4. Clip MR14 Intensity (NumPy)
+    3. Clip MR14 Intensity (NumPy)
         - Min: 0
         - Max: Mean Value of Summation
     
-    5. Save Data (NiBabel)
+    4. Save Data (NiBabel)
         - MR14
         - .nii File
 ### CT
@@ -380,22 +383,26 @@ Slice with Specific Order
 Check Statistic
 
     1. Load Data (NiBabel)
-        - MR, CT
+        - MR, CT, HM
         - .nii File
 
-    2. Remove Air Region (Python)
-        - Optional
-    
-    3. Save Mean and STD Value of MR and CT (Python)
+    2. Flatten Data (NumPy)
 
-    4. Print Stastistic (NumPy + stats)
+    3. Remove Air Region (Python)
+        - Optional
+        - Apply Head Mask
+        - Select Non-Air Region
+    
+    4. Save Mean and STD Value of MR and CT (Python)
+
+    5. Print Stastistic (NumPy)
         - File Name
         - Mean 
         - STD
         - Minimum
         - Maximum
     
-    5. Print Additional Stastistic (NumPy)
+    6. Print Additional Stastistic (NumPy)
         - Mean of Mean
         - STD of Mean
         - Mean of STD
@@ -410,9 +417,12 @@ Check CT Behavior
         - .nii File
 
     2. Get Soft Tissue Intensity (Python)
-        - [96, 96, 144]
+        - [X-Axis * (1/2), Y-Axis * (1/2), Z-Axis * (2/3)]
 
-    3. Remove Air Region (Python)
+    3. Remove Air Region (NumPy)
+        - Apply Head Mask
+        - Flatten Data
+        - Select Non-Air Region
 
     4. Print Stastistic (NumPy)
         - Mean 
