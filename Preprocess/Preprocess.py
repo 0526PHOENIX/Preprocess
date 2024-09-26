@@ -210,7 +210,7 @@ class Preprocess():
         self.labels = os.listdir(CT)
 
         return
-    
+
     """
     ====================================================================================================================
     Interpolate + Rotate
@@ -236,9 +236,12 @@ class Preprocess():
             image = torch.from_numpy(image)
             label = torch.from_numpy(label)
 
-            # Trilinear Interpolation: (192, 192, 192)
-            image = F.interpolate(image[None, None, ...], size = (192, 192, 192), mode = 'trilinear')[0, 0, ...]
-            label = F.interpolate(label[None, None, ...], size = (192, 192, 192), mode = 'trilinear')[0, 0, ...]
+            # Get Z-Axis Size
+            size_z = round(image.shape[2] * (192 / image.shape[0]))
+
+            # Trilinear Interpolation: (192, 192, Original Z * Scale Factor)
+            image = F.interpolate(image[None, None, ...], size = (192, 192, size_z), mode = 'trilinear')[0, 0, ...]
+            label = F.interpolate(label[None, None, ...], size = (192, 192, size_z), mode = 'trilinear')[0, 0, ...]
 
             # Troch Tensor to Numpy Array
             image = image.numpy()
@@ -258,7 +261,7 @@ class Preprocess():
         print()
         
         return
-
+    
     """
     ====================================================================================================================
     Remove Background
@@ -339,7 +342,7 @@ class Preprocess():
         self.hmasks = os.listdir(HM)
 
         return
-
+    
     """
     ====================================================================================================================
     Process Intensity
@@ -500,15 +503,15 @@ class Preprocess():
 
             # Filling Holes and Removing Small Component
             masks = []
-            for j in range(192):
+            for k in range(brain.shape[2]):
 
                 # Process Exception Case
-                if np.all(brain[:, :, j] == 0):
-                    masks.append(np.zeros((192, 192)))
+                if np.all(brain[:, :, k] == 0):
+                    masks.append(np.zeros((brain.shape[0], brain.shape[1])))
                     continue
 
                 # Thresholding
-                binary = (brain[:, :, j] > 0)
+                binary = (brain[:, :, k] > 0)
 
                 # Get Connective Components
                 components, features = ndimage.label(binary)
@@ -564,11 +567,11 @@ class Preprocess():
             brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
 
             # Buffer for Cutting Point
-            point = np.zeros((192), dtype = 'int')
+            point = np.zeros((image.shape[1]), dtype = 'int')
 
             # Create Buffer List for Cutting Point
-            for j in range(192):
-                for k in range(192):
+            for j in range(image.shape[1]):
+                for k in range(image.shape[2]):
 
                     if brain[:, j, k].max() != 0:
                         point[j] = k
@@ -580,7 +583,7 @@ class Preprocess():
             min_index = point.argmin()
 
             # Find Appropriate Cutting Point
-            for j in range(192):
+            for j in range(image.shape[1]):
                 
                 if j < min_index:
                     point[j] = min_point
@@ -591,7 +594,7 @@ class Preprocess():
                     continue
 
             # Remove Useless Area
-            for j in range(192):
+            for j in range(image.shape[1]):
                     
                 image[:, j, :point[j]] = 0.0
                 label[:, j, :point[j]] = -1000.0
@@ -747,28 +750,28 @@ class Preprocess():
             # Find Blank Slice Index
             lower = -1
             upper = -1
-            for j in range(192):
+            for k in range(image.shape[2]):
                 
                 # Ratio of Head Region to Whole Slice
-                ratio = hmask[:, :, j].sum() / (192 * 192)
+                ratio = hmask[:, :, k].sum() / (image.shape[0] * image.shape[1])
 
                 # Lower Bound
                 if (ratio > 0.075) and (lower == -1):
-                    lower = j
+                    lower = k
                     continue
                 # Upper Bound
                 if (ratio < 0.075) and (lower != -1) and (upper == -1):
-                    upper = j
+                    upper = k
                     break
 
             # Slice
-            for j in range(lower + 3, upper - 3):
+            for k in range(lower + 3, upper - 3):
                 
                 # (192, 192, 7) and (192, 192, 1)
-                mr = image[:, :, j - 3 : j + 3 + 1]
-                ct = label[:, :, j : j + 1]
-                hm = hmask[:, :, j : j + 1]
-                sk = skull[:, :, j : j + 1]
+                mr = image[:, :, k - 3 : k + 3 + 1]
+                ct = label[:, :, k : k + 1]
+                hm = hmask[:, :, k : k + 1]
+                sk = skull[:, :, k : k + 1]
 
                 # Transpose (Z, X, Y) + Rotate
                 mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
@@ -778,16 +781,16 @@ class Preprocess():
 
                 # Save Data
                 mr = nib.Nifti1Image(mr, np.eye(4))
-                nib.save(mr, os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(j) + '.nii'))
+                nib.save(mr, os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(k) + '.nii'))
 
                 ct = nib.Nifti1Image(ct, np.eye(4))
-                nib.save(ct, os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(j) + '.nii'))
+                nib.save(ct, os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(k) + '.nii'))
                 
                 hm = nib.Nifti1Image(hm, np.eye(4))
-                nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(j) + '.nii'))
+                nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(k) + '.nii'))
 
                 sk = nib.Nifti1Image(sk, np.eye(4))
-                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(j) + '.nii'))
+                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
         print()
 
         # Check Training, Validation, Testing Set
@@ -878,28 +881,28 @@ class Preprocess():
             # Find Blank Slice Index
             lower = -1
             upper = -1
-            for j in range(192):
+            for k in range(image.shape[2]):
                 
                 # Ratio of Head Region to Whole Slice
-                ratio = hmask[:, :, j].sum() / (192 * 192)
+                ratio = hmask[:, :, k].sum() / (image.shape[0] * image.shape[1])
 
                 # Lower Bound
                 if (ratio > 0.075) and (lower == -1):
-                    lower = j
+                    lower = k
                     continue
                 # Upper Bound
                 if (ratio < 0.075) and (lower != -1) and (upper == -1):
-                    upper = j
+                    upper = k
                     break
 
             # Slice
-            for j in range(lower + 3, upper - 3):
+            for k in range(lower + 3, upper - 3):
                 
                 # (192, 192, 7) and (192, 192, 1)
-                mr = image[:, :, j - 3 : j + 3 + 1]
-                ct = label[:, :, j : j + 1]
-                hm = hmask[:, :, j : j + 1]
-                sk = skull[:, :, j : j + 1]
+                mr = image[:, :, k - 3 : k + 3 + 1]
+                ct = label[:, :, k : k + 1]
+                hm = hmask[:, :, k : k + 1]
+                sk = skull[:, :, k : k + 1]
 
                 # Transpose (Z, X, Y) + Rotate
                 mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
@@ -909,16 +912,16 @@ class Preprocess():
 
                 # Save Data
                 mr = nib.Nifti1Image(mr, np.eye(4))
-                nib.save(mr, os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(j) + '.nii'))
+                nib.save(mr, os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(k) + '.nii'))
 
                 ct = nib.Nifti1Image(ct, np.eye(4))
-                nib.save(ct, os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(j) + '.nii'))
+                nib.save(ct, os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(k) + '.nii'))
                 
                 hm = nib.Nifti1Image(hm, np.eye(4))
-                nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(j) + '.nii'))
+                nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(k) + '.nii'))
 
                 sk = nib.Nifti1Image(sk, np.eye(4))
-                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(j) + '.nii'))
+                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
         print()
 
         # Check Training, Validation, Testing Set
@@ -943,6 +946,8 @@ class Preprocess():
         self.labels.sort()
         self.hmasks.sort()
         self.skulls.sort()
+
+        return
 
     """
     ====================================================================================================================
@@ -977,11 +982,15 @@ class Preprocess():
             # Load Data
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32').flatten()
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32').flatten()
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool').flatten()
 
             # Remove Air Region
-            image = image[image > -1]
+            image = np.where(hmask, image, 0)
+            label = np.where(hmask, label, -250)
+
+            image = image[image > 0]
             label = label[label > -250]
-            
+
             # Save Mean and STD
             mr_mean.append(image.mean())
             ct_mean.append(label.mean())
@@ -1037,11 +1046,13 @@ class Preprocess():
 
             # Load Data
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
             # Soft Tissue Intensity
-            tissue = label[96, 96, 144]
+            tissue = label[label.shape[0] // 2, label.shape[1] // 2, label.shape[2] // 3 * 2]
 
             # Remove Air Region
+            label = np.where(hmask, label, -250)
             label = label.flatten()
             label = label[label > -250]
 
