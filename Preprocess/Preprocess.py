@@ -11,7 +11,9 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
 import random
 
+from typing import Literal
 from tqdm import tqdm
+
 import numpy as np
 import nibabel as nib
 import SimpleITK as sitk
@@ -31,17 +33,17 @@ import torch.nn.functional as F
 Global Constant
 ========================================================================================================================
 """
-MR_RAW = ""
-CT_RAW = ""
+MR_RAW = "C:/Users/user/Desktop/Data/Data_Raw/MR"
+CT_RAW = "C:/Users/user/Desktop/Data/Data_Raw/CT"
 
-MR = ""
-CT = ""
-HM = ""
-BR = ""
-SK = ""
-VS = ""
+MR = "C:/Users/user/Desktop/Data/Data/MR"
+CT = "C:/Users/user/Desktop/Data/Data/CT"
+HM = "C:/Users/user/Desktop/Data/Data/HM"
+BR = "C:/Users/user/Desktop/Data/Data/BR"
+SK = "C:/Users/user/Desktop/Data/Data/SK"
+VS = "C:/Users/user/Desktop/Data/Data/VS"
 
-DATA_2D = ""
+DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
 
 PATH_LIST = [MR, CT, HM, BR, SK, VS, DATA_2D]
 
@@ -109,20 +111,20 @@ class Preprocess():
         File Format
         ================================================================================================================
         """
-        # # Change File Format
-        # self.mat2nii()
+        # Change File Format
+        self.mat2nii()
 
         """
         ================================================================================================================
         Background
         ================================================================================================================
         """
-        # # Interpolate + Rotate
-        # self.transform()
-        # # Remove Background
-        # self.background()
-        # # Process Intensity
-        # self.intensity()
+        # Interpolate or Padding + Rotate + Shift Intensity
+        self.transform(mode = 'interpolate')
+        # Remove Background
+        self.background(otsu = False)
+        # Process Intensity
+        self.intensity()
 
         """
         ================================================================================================================
@@ -213,14 +215,14 @@ class Preprocess():
 
     """
     ====================================================================================================================
-    Interpolate + Rotate
+    Rotate + Shift Intensity + Interpolate or Padding
     ====================================================================================================================
     """
-    def transform(self) -> None:
+    def transform(self, mode: str | Literal['interpolate', 'padding'] = 'interpolate') -> None:
 
         print()
         print('=======================================================================================================')
-        print('Interpolate + Rotate')
+        print('Rotate + Shift Intensity + Interpolate or Padding')
         print('=======================================================================================================')
         print()
 
@@ -232,25 +234,52 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
 
-            # Numpy Array to Troch Tensor
-            image = torch.from_numpy(image)
-            label = torch.from_numpy(label)
-
-            # Get Z-Axis Size
-            size_z = round(image.shape[2] * (192 / image.shape[0]))
-
-            # Trilinear Interpolation: (192, 192, Original Z * Scale Factor)
-            image = F.interpolate(image[None, None, ...], size = (192, 192, size_z), mode = 'trilinear')[0, 0, ...]
-            label = F.interpolate(label[None, None, ...], size = (192, 192, size_z), mode = 'trilinear')[0, 0, ...]
-
-            # Troch Tensor to Numpy Array
-            image = image.numpy()
-            label = label.numpy()
-
             # Rotate
             if (i + 1) not in self.direction:
                 image = np.rot90(image, k = 3, axes = (0, 1))
                 label = np.rot90(label, k = 3, axes = (0, 1))
+
+            # Deal With CT Extreme Case: Shift -1000
+            if (i + 1) in self.highvalue:
+                label -= 1000
+
+            if mode == 'interpolate':
+
+                # Numpy Array to Troch Tensor
+                image = torch.from_numpy(image.copy())
+                label = torch.from_numpy(label.copy())
+
+                # Get Z-Axis Size
+                size_z = round(image.shape[2] * (256 / image.shape[0]))
+
+                # Trilinear Interpolation: (256, 256, Original Z * Scale Factor)
+                image = F.interpolate(image[None, None, ...], size = (256, 256, size_z), mode = 'trilinear')[0, 0, ...]
+                label = F.interpolate(label[None, None, ...], size = (256, 256, size_z), mode = 'trilinear')[0, 0, ...]
+
+                # Troch Tensor to Numpy Array
+                image = image.numpy()
+                label = label.numpy()
+
+            else:
+
+                # Calculate the padding for height and width
+                x_axis = max(256 - image.shape[0], 0)
+                y_axis = max(256 - image.shape[1], 0)
+
+                # Apply padding to height and width with the specified pad value (-1000 HU)
+                image = np.pad(image,
+                            ((x_axis // 2, x_axis - x_axis // 2), (y_axis // 2, y_axis - y_axis // 2), (0, 0)),
+                            mode = 'constant',
+                            constant_values = 0)
+
+                label = np.pad(label,
+                            ((x_axis // 2, x_axis - x_axis // 2), (y_axis // 2, y_axis - y_axis // 2), (0, 0)),
+                            mode = 'constant',
+                            constant_values = -1000)
+
+                # Crop the image to the target shape if it's larger than needed
+                image = image[: 256, : 256, :]
+                label = label[: 256, : 256, :]
 
             # Save Data
             image = nib.Nifti1Image(image, np.eye(4))
@@ -260,14 +289,14 @@ class Preprocess():
             nib.save(label, os.path.join(CT, self.labels[i]))
         print()
         
-        return
+        return 
     
     """
     ====================================================================================================================
     Remove Background
     ====================================================================================================================
     """
-    def background(self) -> None:
+    def background(self, otsu: bool = False) -> None:
 
         print()
         print('=======================================================================================================')
@@ -283,8 +312,11 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
 
-            # Flatten MR Data
-            flat = image.flatten()
+            # Remove Rough Background
+            label = np.where(label > -250, label, -1000)
+
+            # Flatten CT Data
+            flat = label.flatten()
 
             # Sort in Ascending Order
             sorted = np.sort(flat)
@@ -293,18 +325,52 @@ class Preprocess():
             dis = np.cumsum(sorted)
             dis = dis / dis[-1]
 
-            # Get Threshold
-            if (i + 1) in self.artifacts:
-                # Specific Case (CT Artifect)
-                index = np.where(dis <= 0.200)[0][-1]
+            # Use Otsu's Algorithm
+            if otsu:
+
+                # Get Criteria
+                criteria = []
+                threshold_range = range(10, 100)
+                for j in threshold_range:
+
+                    # Get Threshold
+                    index = np.where(dis <= j / 400)[0][-1]
+                    value = sorted[index]
+
+                    # Thresholding
+                    binary = (label > value)
+
+                    # Compute Weight
+                    weight_1 = binary.sum() / label.size
+                    weight_0 = 1 - weight_1
+
+                    # Extrene Case
+                    if weight_1 == 0 or weight_0 == 0:
+                        criteria.append(np.inf)
+                        continue
+
+                    # Compute Variance
+                    var_1 = label[binary == 1].var() if label[binary == 1].size > 0 else 0
+                    var_0 = label[binary == 0].var() if label[binary == 0].size > 0 else 0
+
+                    # Save Criteria to Buffer
+                    criteria.append(weight_0 * var_0 + weight_1 * var_1)
+
+                # Python List to Numpy Array
+                criteria = np.array(criteria)
+
+                # Get Best Threshold in All Criteria
+                index = np.where(dis <= threshold_range[criteria.argmin()] / 400)[0][-1]
                 value = sorted[index]
+
             else:
-                # General Case
-                index = np.where(dis <= 0.125)[0][-1]
+
+                # Get Threshold
+                index = np.where(dis <= 0.025)[0][-1]
                 value = sorted[index]
 
             # Thresholding
-            binary = (image > value)
+            binary = (label > value)
 
             # Get Connective Component
             components, features = ndimage.label(binary)
@@ -318,10 +384,10 @@ class Preprocess():
             # Slect Largest Component
             hmask = (components == largest)
 
-            # Fill Holes in Mask
-            hmask = ndimage.binary_dilation(hmask, np.ones((25, 25, 25)))
-            hmask = ndimage.binary_erosion(hmask, np.ones((25, 25, 25)))
-
+            # Fill Holes in Mask (Along Z-Axis)
+            for j in range(hmask.shape[2]):
+                hmask[:, :, j] = ndimage.binary_closing(hmask[:, :, j], np.ones((35, 35)))
+            
             # Apply Mask
             image = np.where(hmask, image, 0)
             label = np.where(hmask, label, -1000)
@@ -389,7 +455,7 @@ class Preprocess():
         nib.save(image, os.path.join(MR, self.images[13]))
 
         print('-------------------------------------------------------------------------------------------------------')
-        print('Clip CT Intensity + Deal With Extreme Case')
+        print('Clip CT Intensity')
         print('-------------------------------------------------------------------------------------------------------')
 
         # Progress Bar
@@ -398,10 +464,6 @@ class Preprocess():
 
             # Load Data
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
-            
-            # Deal With Extreme Case: Shift -1000
-            if (i + 1) in self.highvalue:
-                label -= 1000
 
             # Clip Intensity
             label = np.clip(label, -1000, 3000)
@@ -526,8 +588,7 @@ class Preprocess():
                 mask = (components == largest)
 
                 # Fill Holes in Mask
-                mask = ndimage.binary_dilation(mask, np.ones((15, 15)))
-                mask = ndimage.binary_erosion(mask, np.ones((15, 15)))
+                mask = ndimage.binary_closing(mask, np.ones((15, 15)))
 
                 # Background
                 masks.append(np.where(mask, 1, 0))
@@ -657,8 +718,8 @@ class Preprocess():
             smask = (components == largest)
 
             # Fill Holes in Mask
-            smask = ndimage.binary_dilation(smask, np.ones((5, 5, 5)))
-            smask = ndimage.binary_erosion(smask, np.ones((5, 5, 5)))
+            for j in range(smask.shape[2]):
+                smask = ndimage.binary_closing(smask[:, :, j], np.ones((5, 5)))
 
             # Apply Mask
             label = np.where(smask, label, -1000)
@@ -767,7 +828,7 @@ class Preprocess():
             # Slice
             for k in range(lower + 3, upper - 3):
                 
-                # (192, 192, 7) and (192, 192, 1)
+                # (256, 256, 7) and (256, 256, 1)
                 mr = image[:, :, k - 3 : k + 3 + 1]
                 ct = label[:, :, k : k + 1]
                 hm = hmask[:, :, k : k + 1]
@@ -898,7 +959,7 @@ class Preprocess():
             # Slice
             for k in range(lower + 3, upper - 3):
                 
-                # (192, 192, 7) and (192, 192, 1)
+                # (256, 256, 7) and (256, 256, 1)
                 mr = image[:, :, k - 3 : k + 3 + 1]
                 ct = label[:, :, k : k + 1]
                 hm = hmask[:, :, k : k + 1]
