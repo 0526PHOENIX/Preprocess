@@ -62,6 +62,12 @@ class Preprocess():
     """
     def __init__(self) -> None:
 
+        print()
+        print('=======================================================================================================')
+        print('Initialization')
+        print('=======================================================================================================')
+        print()
+
         # Check File Path
         for path in PATH_LIST:
             if not os.path.exists(path):
@@ -69,7 +75,7 @@ class Preprocess():
 
         # Data_2D File Path
         for dataset in ['Train', 'Val', 'Test']:
-            for data in ['MR', 'CT', 'HM', 'SK']:
+            for data in ['MR', 'CT', 'HM', 'BR', 'SK']:
                 path = os.path.join(os.path.join(DATA_2D, dataset, data))
                 if not os.path.exists(path):
                     os.makedirs(path)
@@ -94,8 +100,11 @@ class Preprocess():
 
         # Problem Case
         self.direction = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        self.artifacts = [5, 6, 7, 8, 9, 10]
         self.highvalue = [2, 5, 6, 7, 8, 9, 10]
+
+        # Log
+        print('Done !')
+        print()
 
         return
 
@@ -128,17 +137,19 @@ class Preprocess():
 
         """
         ================================================================================================================
-        Extract Brain Region + Remove Useless Region
+        Extract Brain Region + Remove Useless Region + Normalize
         ================================================================================================================
         """
-        # # N4 Bias Correction
-        # self.n4bias()
-        # # Extract Brain Region
-        # self.strip()
-        # # Fill Holes in Brain Mask
-        # self.fillhole()
+        # N4 Bias Correction
+        self.n4bias()
+        # Extract Brain Region
+        self.strip()
+        # Fill Holes in Brain Mask
+        self.fillhole()
         # # Remove Useless Area
         # self.remove()
+        # # MR Normalize
+        # self.normalize()
 
         """
         ================================================================================================================
@@ -150,15 +161,13 @@ class Preprocess():
 
         """
         ================================================================================================================
-        Normalize + Slice
+        Slice + Remove Redundant Area
         ================================================================================================================
         """
-        # # MR Normalize
-        # self.normalize()
         # # Slice
-        # self.slice()
+        # self.slice(threshold = 0.0)
         # # Slice with Specific Order
-        # self.specific()
+        # self.specific(threshold = 0.0)
 
         """
         ================================================================================================================
@@ -384,10 +393,23 @@ class Preprocess():
             # Slect Largest Component
             hmask = (components == largest)
 
-            # Fill Holes in Mask (Along Z-Axis)
-            for j in range(hmask.shape[2]):
-                hmask[:, :, j] = ndimage.binary_closing(hmask[:, :, j], np.ones((35, 35)))
-            
+            # Head Mask Buffer
+            mask = hmask.copy()
+
+            # Closing Element Structure
+            struct = int(hmask.shape[0] / 8 // 2) * 2 + 1
+            while struct >= 3:
+
+                # Fill Holes in Mask (Along Z-Axis)
+                for j in range(hmask.shape[2]):
+                    hmask[:, :, j] = ndimage.binary_closing(hmask[:, :, j], np.ones((struct, struct)))
+                
+                # Narrow Down Element Structure
+                struct = int(struct / 3 // 2) * 2 + 1
+
+                # Element-Wise Or Operation of Refined Mask with Original Mask
+                hmask |= mask
+                    
             # Apply Mask
             image = np.where(hmask, image, 0)
             label = np.where(hmask, label, -1000)
@@ -676,63 +698,6 @@ class Preprocess():
 
     """
     ====================================================================================================================
-    Extract Skull Region
-    ====================================================================================================================
-    """
-    def extract(self) -> None:
-
-        print()
-        print('=======================================================================================================')
-        print('Extract Skull Region')
-        print('=======================================================================================================')
-        print()
-
-        # Progress Bar
-        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
-        for i in progress:
-            
-            # Load Data
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
-            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
-
-            # Apply Erosion Mask
-            brain = ndimage.binary_erosion(brain, np.ones((13, 13, 13)))
-            label = np.where(brain, -1000, label)
-
-            # Find Threshold
-            value = (label[label != -1000].mean() * 1) + (label[label != -1000].std() * 0)
-
-            # Thresholding
-            binary = (label > value)
-
-            # Get Connective Component
-            components, features = ndimage.label(binary)
-
-            # Compute Size of Each Component
-            sizes = ndimage.sum(binary, components, range(1, features + 1))
-
-            # Find Largest Component
-            largest = np.argmax(sizes) + 1
-
-            # Slect Largest Component
-            smask = (components == largest)
-
-            # Fill Holes in Mask
-            for j in range(smask.shape[2]):
-                smask = ndimage.binary_closing(smask[:, :, j], np.ones((5, 5)))
-
-            # Apply Mask
-            label = np.where(smask, label, -1000)
-
-            # Save Data
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(SK, 'SK' + self.labels[i][2:]))
-        print()
-
-        return
-
-    """
-    ====================================================================================================================
     Normalize MR
     ====================================================================================================================
     """
@@ -771,25 +736,95 @@ class Preprocess():
 
     """
     ====================================================================================================================
-    Slice
+    Extract Skull Region
     ====================================================================================================================
     """
-    def slice(self) -> None:
+    def extract(self) -> None:
 
         print()
         print('=======================================================================================================')
-        print('Slice')
+        print('Extract Skull Region')
+        print('=======================================================================================================')
+        print()
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+            
+            # Load Data
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
+
+            # Apply Erosion Mask
+            brain = ndimage.binary_erosion(brain, np.ones((13, 13, 13)))
+            label = np.where(brain, -1000, label)
+
+            # Find Threshold
+            value = (label[label != -1000].mean() * 1) + (label[label != -1000].std() * 0)
+
+            # Thresholding
+            binary = (label > 250)
+
+            # Get Connective Component
+            components, features = ndimage.label(binary)
+
+            # Compute Size of Each Component
+            sizes = ndimage.sum(binary, components, range(1, features + 1))
+
+            # Find Largest Component
+            largest = np.argmax(sizes) + 1
+
+            # Slect Largest Component
+            smask = (components == largest)
+
+            # Head Mask Buffer
+            mask = smask.copy()
+
+            # Closing Element Structure
+            struct = int(smask.shape[0] / 20 // 2) * 2 + 1
+            while struct >= 3:
+
+                # Fill Holes in Mask (Along Z-Axis)
+                for j in range(smask.shape[2]):
+                    smask[:, :, j] = ndimage.binary_closing(smask[:, :, j], np.ones((struct, struct)))
+                
+                # Narrow Down Element Structure
+                struct = int(struct / 3 // 2) * 2 + 1
+
+                # Element-Wise Or Operation of Refined Mask with Original Mask
+                smask |= mask
+
+            # Apply Mask
+            label = np.where(smask, label, -1000)
+
+            # Save Data
+            label = nib.Nifti1Image(label, np.eye(4))
+            nib.save(label, os.path.join(SK, 'SK' + self.labels[i][2:]))
+        print()
+
+        return
+
+    """
+    ====================================================================================================================
+    Slice + Remove Redundant Area
+    ====================================================================================================================
+    """
+    def slice(self, threshold: float = 0.075) -> None:
+
+        print()
+        print('=======================================================================================================')
+        print('Slice + Remove Redundant Area')
         print('=======================================================================================================')
         print()
 
         # Combine File Name List
-        buffer = list(zip(self.images, self.labels, self.hmasks, self.skulls))
+        buffer = list(zip(self.images, self.labels, self.hmasks, self.brains, self.skulls))
 
         # Random Shuffle Simultaneously
         random.shuffle(buffer)
 
         # Separate File Name List
-        self.images, self.labels, self.hmasks, self.skulls = map(list, zip(*buffer))
+        self.images, self.labels, self.hmasks, self.brains, self.skulls = map(list, zip(*buffer))
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -802,26 +837,27 @@ class Preprocess():
             elif i < 26:
                 dataset = 'Test'
 
-            # Load Data and Backgrond
+            # Load Data
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
+            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
             skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
 
             # Find Blank Slice Index
             lower = -1
             upper = -1
-            for k in range(image.shape[2]):
+            for k in range(hmask.shape[2]):
                 
                 # Ratio of Head Region to Whole Slice
-                ratio = hmask[:, :, k].sum() / (image.shape[0] * image.shape[1])
+                ratio = hmask[:, :, k].sum() / (hmask.shape[0] * hmask.shape[1])
 
                 # Lower Bound
-                if (ratio > 0.075) and (lower == -1):
+                if (ratio > threshold) and (lower == -1):
                     lower = k
                     continue
                 # Upper Bound
-                if (ratio < 0.075) and (lower != -1) and (upper == -1):
+                if (ratio <= threshold) and (lower != -1) and (upper == -1):
                     upper = k
                     break
 
@@ -832,12 +868,14 @@ class Preprocess():
                 mr = image[:, :, k - 3 : k + 3 + 1]
                 ct = label[:, :, k : k + 1]
                 hm = hmask[:, :, k : k + 1]
+                br = brain[:, :, k : k + 1]
                 sk = skull[:, :, k : k + 1]
 
                 # Transpose (Z, X, Y) + Rotate
                 mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 ct = np.rot90(ct.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 hm = np.rot90(hm.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                br = np.rot90(br.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 sk = np.rot90(sk.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
@@ -850,8 +888,27 @@ class Preprocess():
                 hm = nib.Nifti1Image(hm, np.eye(4))
                 nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(k) + '.nii'))
 
+                br = nib.Nifti1Image(br, np.eye(4))
+                nib.save(br, os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(k) + '.nii'))
+
                 sk = nib.Nifti1Image(sk, np.eye(4))
                 nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
+
+            # Remove Redundant Area + Save Data
+            image = nib.Nifti1Image(image[:, :, lower : upper], np.eye(4))
+            nib.save(image, os.path.join(MR, self.images[i]))
+
+            label = nib.Nifti1Image(label[:, :, lower : upper], np.eye(4))
+            nib.save(label, os.path.join(CT, self.labels[i]))
+
+            hmask = nib.Nifti1Image(hmask[:, :, lower : upper], np.eye(4))
+            nib.save(hmask, os.path.join(HM, self.hmasks[i]))
+    
+            brain = nib.Nifti1Image(brain[:, :, lower : upper], np.eye(4))
+            nib.save(brain, os.path.join(BR, self.brains[i]))
+
+            skull = nib.Nifti1Image(skull[:, :, lower : upper], np.eye(4))
+            nib.save(skull, os.path.join(SK, self.skulls[i]))
         print()
 
         # Check Training, Validation, Testing Set
@@ -881,20 +938,21 @@ class Preprocess():
         self.images.sort()
         self.labels.sort()
         self.hmasks.sort()
+        self.brains.sort()
         self.skulls.sort()
 
         return
 
     """
     ====================================================================================================================
-    Slice with Specific Order
+    Slice with Specific Order + Remove Redundant Area
     ====================================================================================================================
     """ 
-    def specific(self) -> None:
+    def specific(self, threshold: float = 0.075) -> None:
 
         print()
         print('=======================================================================================================')
-        print('Slice with Specific Order')
+        print('Slice with Specific Order + Remove Redundant Area')
         print('=======================================================================================================')
         print()
 
@@ -902,6 +960,7 @@ class Preprocess():
         self.images.clear()
         self.labels.clear()
         self.hmasks.clear()
+        self.brains.clear()
         self.skulls.clear()
 
         # Open File of Specifice Order
@@ -920,6 +979,7 @@ class Preprocess():
                     self.images.append('MR' + str(num) + '.nii')
                     self.labels.append('CT' + str(num) + '.nii')
                     self.hmasks.append('HM' + str(num) + '.nii')
+                    self.brains.append('BR' + str(num) + '.nii')
                     self.skulls.append('SK' + str(num) + '.nii')
 
         # Progress Bar
@@ -937,22 +997,23 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
+            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
             skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
-
+            
             # Find Blank Slice Index
             lower = -1
             upper = -1
-            for k in range(image.shape[2]):
+            for k in range(hmask.shape[2]):
                 
                 # Ratio of Head Region to Whole Slice
-                ratio = hmask[:, :, k].sum() / (image.shape[0] * image.shape[1])
+                ratio = hmask[:, :, k].sum() / (hmask.shape[0] * hmask.shape[1])
 
                 # Lower Bound
-                if (ratio > 0.075) and (lower == -1):
+                if (ratio > threshold) and (lower == -1):
                     lower = k
                     continue
                 # Upper Bound
-                if (ratio < 0.075) and (lower != -1) and (upper == -1):
+                if (ratio <= threshold) and (lower != -1) and (upper == -1):
                     upper = k
                     break
 
@@ -963,12 +1024,14 @@ class Preprocess():
                 mr = image[:, :, k - 3 : k + 3 + 1]
                 ct = label[:, :, k : k + 1]
                 hm = hmask[:, :, k : k + 1]
+                br = brain[:, :, k : k + 1]
                 sk = skull[:, :, k : k + 1]
 
                 # Transpose (Z, X, Y) + Rotate
                 mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 ct = np.rot90(ct.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 hm = np.rot90(hm.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                br = np.rot90(br.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 sk = np.rot90(sk.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
@@ -980,9 +1043,28 @@ class Preprocess():
                 
                 hm = nib.Nifti1Image(hm, np.eye(4))
                 nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(k) + '.nii'))
+                
+                br = nib.Nifti1Image(br, np.eye(4))
+                nib.save(br, os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(k) + '.nii'))
 
                 sk = nib.Nifti1Image(sk, np.eye(4))
                 nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
+
+            # Remove Redundant Area + Save Data
+            image = nib.Nifti1Image(image[:, :, lower : upper], np.eye(4))
+            nib.save(image, os.path.join(MR, self.images[i]))
+
+            label = nib.Nifti1Image(label[:, :, lower : upper], np.eye(4))
+            nib.save(label, os.path.join(CT, self.labels[i]))
+
+            hmask = nib.Nifti1Image(hmask[:, :, lower : upper], np.eye(4))
+            nib.save(hmask, os.path.join(HM, self.hmasks[i]))
+    
+            brain = nib.Nifti1Image(brain[:, :, lower : upper], np.eye(4))
+            nib.save(brain, os.path.join(BR, self.brains[i]))
+
+            skull = nib.Nifti1Image(skull[:, :, lower : upper], np.eye(4))
+            nib.save(skull, os.path.join(SK, self.skulls[i]))
         print()
 
         # Check Training, Validation, Testing Set
@@ -1006,6 +1088,7 @@ class Preprocess():
         self.images.sort()
         self.labels.sort()
         self.hmasks.sort()
+        self.brains.sort()
         self.skulls.sort()
 
         return
