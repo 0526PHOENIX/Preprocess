@@ -17,6 +17,7 @@ from tqdm import tqdm
 import numpy as np
 import nibabel as nib
 import SimpleITK as sitk
+import matplotlib.pyplot as plt
 
 from scipy import io
 from scipy import ndimage
@@ -120,36 +121,36 @@ class Preprocess():
         File Format
         ================================================================================================================
         """
-        # Change File Format
-        self.mat2nii()
+        # # Change File Format From .mat To .nii
+        # self.convert_format()
 
         """
         ================================================================================================================
         Background
         ================================================================================================================
         """
-        # Interpolate or Padding + Rotate + Shift Intensity
-        self.transform(mode = 'interpolate')
-        # Remove Background
-        self.background(otsu = False)
-        # Process Intensity
-        self.intensity()
+        # # Interpolate or Padding + Rotate + Shift Intensity
+        # self.apply_transformation(mode = 'interpolate')
+        # # Remove Background
+        # self.remove_background(otsu = False)
+        # # Process Intensity
+        # self.clip_intensity()
 
         """
         ================================================================================================================
         Extract Brain Region + Remove Useless Region + Normalize
         ================================================================================================================
         """
-        # N4 Bias Correction
-        self.n4bias()
-        # Extract Brain Region
-        self.strip()
-        # Fill Holes in Brain Mask
-        self.fillhole()
+        # # N4 Bias Correction
+        # self.correct_bias()
+        # # Extract Brain Region
+        # self.extract_brain()
+        # # Fill Holes in Brain Mask
+        # self.fill_hole()
         # # Remove Useless Area
-        # self.remove()
+        # self.remove_uselessness()
         # # MR Normalize
-        # self.normalize()
+        # self.apply_normalization()
 
         """
         ================================================================================================================
@@ -157,7 +158,7 @@ class Preprocess():
         ================================================================================================================
         """
         # # Extract Slull Region
-        # self.extract()
+        # self.extract_skull()
 
         """
         ================================================================================================================
@@ -165,9 +166,9 @@ class Preprocess():
         ================================================================================================================
         """
         # # Slice
-        # self.slice(threshold = 0.0)
+        # self.random_slice(threshold = 0.0)
         # # Slice with Specific Order
-        # self.specific(threshold = 0.0)
+        # self.ordered_slice(threshold = 0.0)
 
         """
         ================================================================================================================
@@ -175,24 +176,27 @@ class Preprocess():
         ================================================================================================================
         """
         # # Check Statistic
-        # self.statistic()
+        # self.compute_statistic()
         # # Check CT Behavior
-        # self.checkct()
+        # self.check_ct()
         # # Visulize Brain and Skull Extraction Result
-        # self.visualize()
+        # self.visualize_extraction()
+
+        # Display Histogram
+        self.display_histogram()
 
         return
     
     """
     ====================================================================================================================
-    Change File Format
+    Change File Format From .mat To .nii
     ====================================================================================================================
     """
-    def mat2nii(self) -> None:
+    def convert_format(self) -> None:
         
         print()
         print('=======================================================================================================')
-        print('Change File Format')
+        print('Change File Format From .mat To .nii')
         print('=======================================================================================================')
         print()
 
@@ -227,7 +231,7 @@ class Preprocess():
     Rotate + Shift Intensity + Interpolate or Padding
     ====================================================================================================================
     """
-    def transform(self, mode: str | Literal['interpolate', 'padding'] = 'interpolate') -> None:
+    def apply_transformation(self, mode: str | Literal['interpolate', 'padding'] = 'interpolate') -> None:
 
         print()
         print('=======================================================================================================')
@@ -305,7 +309,7 @@ class Preprocess():
     Remove Background
     ====================================================================================================================
     """
-    def background(self, otsu: bool = False) -> None:
+    def remove_background(self, otsu: bool = False) -> None:
 
         print()
         print('=======================================================================================================')
@@ -436,7 +440,7 @@ class Preprocess():
     Process Intensity
     ====================================================================================================================
     """
-    def intensity(self) -> None:
+    def clip_intensity(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -502,7 +506,7 @@ class Preprocess():
     N4 Bias Correction
     ====================================================================================================================
     """
-    def n4bias(self) -> None:
+    def correct_bias(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -533,7 +537,7 @@ class Preprocess():
     Extract Brain Region
     ====================================================================================================================
     """
-    def strip(self) -> None:
+    def extract_brain(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -565,7 +569,7 @@ class Preprocess():
     Fill Holes in Brain Mask
     ====================================================================================================================
     """
-    def fillhole(self) -> None:
+    def fill_hole(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -613,15 +617,36 @@ class Preprocess():
                 mask = ndimage.binary_closing(mask, np.ones((15, 15)))
 
                 # Background
-                masks.append(np.where(mask, 1, 0))
+                masks.append(mask)
 
             # Stack + Transpose
             masks = np.stack(masks, axis = 0)
             masks = masks.transpose(1, 2, 0)
 
+            # Apply Mask
+            brain = np.where(masks, 1, 0)
+
+            # Thresholding
+            binary = (brain > 0)
+
+            # Get Connective Component
+            components, features = ndimage.label(binary)
+
+            # Compute Size of Each Component
+            sizes = ndimage.sum(binary, components, range(1, features + 1))
+
+            # Find Largest Component
+            largest = np.argmax(sizes) + 1
+
+            # Slect Largest Component
+            brain = (components == largest)
+
+            # Apply Mask
+            brain = np.where(brain, 1, 0)
+
             # Save Brain Mask
-            masks = nib.Nifti1Image(masks, np.eye(4))
-            nib.save(masks, os.path.join(BR, self.brains[i]))
+            brain = nib.Nifti1Image(brain, np.eye(4))
+            nib.save(brain, os.path.join(BR, self.brains[i]))
         print()
 
         return
@@ -631,7 +656,7 @@ class Preprocess():
     Remove Useless Area
     ====================================================================================================================
     """
-    def remove(self) -> None:
+    def remove_uselessness(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -701,7 +726,7 @@ class Preprocess():
     Normalize MR
     ====================================================================================================================
     """
-    def normalize(self) -> None:
+    def apply_normalization(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -739,7 +764,7 @@ class Preprocess():
     Extract Skull Region
     ====================================================================================================================
     """
-    def extract(self) -> None:
+    def extract_skull(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -775,32 +800,35 @@ class Preprocess():
             largest = np.argmax(sizes) + 1
 
             # Slect Largest Component
-            smask = (components == largest)
+            skull = (components == largest)
 
             # Head Mask Buffer
-            mask = smask.copy()
+            mask = skull.copy()
 
             # Closing Element Structure
-            struct = int(smask.shape[0] / 20 // 2) * 2 + 1
+            struct = int(skull.shape[0] / 20 // 2) * 2 + 1
             while struct >= 3:
 
                 # Fill Holes in Mask (Along Z-Axis)
-                for j in range(smask.shape[2]):
-                    smask[:, :, j] = ndimage.binary_closing(smask[:, :, j], np.ones((struct, struct)))
+                for j in range(skull.shape[2]):
+                    skull[:, :, j] = ndimage.binary_closing(skull[:, :, j], np.ones((struct, struct)))
                 
                 # Narrow Down Element Structure
                 struct = int(struct / 3 // 2) * 2 + 1
 
                 # Element-Wise Or Operation of Refined Mask with Original Mask
-                smask |= mask
+                skull |= mask
 
             # Apply Mask
-            label = np.where(smask, label, -1000)
+            skull = np.where(skull, label, -1000)
 
             # Save Data
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(SK, 'SK' + self.labels[i][2:]))
+            skull = nib.Nifti1Image(skull, np.eye(4))
+            nib.save(skull, os.path.join(SK, 'SK' + self.labels[i][2:]))
         print()
+
+        # Get New File Name
+        self.skulls = os.listdir(SK)
 
         return
 
@@ -809,7 +837,7 @@ class Preprocess():
     Slice + Remove Redundant Area
     ====================================================================================================================
     """
-    def slice(self, threshold: float = 0.075) -> None:
+    def random_slice(self, threshold: float = 0.075) -> None:
 
         print()
         print('=======================================================================================================')
@@ -948,7 +976,7 @@ class Preprocess():
     Slice with Specific Order + Remove Redundant Area
     ====================================================================================================================
     """ 
-    def specific(self, threshold: float = 0.075) -> None:
+    def ordered_slice(self, threshold: float = 0.075) -> None:
 
         print()
         print('=======================================================================================================')
@@ -1098,7 +1126,7 @@ class Preprocess():
     Check Statistic
     ====================================================================================================================
     """
-    def statistic(self) -> None:
+    def compute_statistic(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -1107,8 +1135,8 @@ class Preprocess():
         print()
 
         # Output Format
-        title = "{:<20}{:<20}{:<20}{:<20}{:<20}"
-        space = "{:<20}{:<20.2f}{:<20.2f}{:<20.2f}{:<20.2f}"
+        title = "{:^20}|{:^20}|{:^20}|{:^20}|{:^20}"
+        space = "{:^20}|{:^20.2f}|{:^20.2f}|{:^20.2f}|{:^20.2f}"
 
         # Title
         print('-------------------------------------------------------------------------------------------------------')
@@ -1128,12 +1156,12 @@ class Preprocess():
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32').flatten()
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool').flatten()
 
-            # Remove Air Region
-            image = np.where(hmask, image, 0)
-            label = np.where(hmask, label, -250)
+            # # Remove Air Region
+            # image = np.where(hmask, image, 0)
+            # label = np.where(hmask, label, -250)
 
-            image = image[image > 0]
-            label = label[label > -250]
+            # image = image[image > 0]
+            # label = label[label > -250]
 
             # Save Mean and STD
             mr_mean.append(image.mean())
@@ -1169,7 +1197,7 @@ class Preprocess():
     Check CT Behavior
     ====================================================================================================================
     """
-    def checkct(self) -> None:
+    def check_ct(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -1178,8 +1206,8 @@ class Preprocess():
         print()
 
         # Output Format
-        title = "{:<20}{:<40}{:<40}"
-        space = "{:<20}{:<40.2f}{:<40.2f}"
+        title = "{:^25}|{:^40}|{:^40}"
+        space = "{:^25}|{:^40.2f}|{:^40.2f}"
 
         # Title
         print('-------------------------------------------------------------------------------------------------------')
@@ -1212,7 +1240,7 @@ class Preprocess():
     Visulize Brain and Skull Extraction Result
     ====================================================================================================================
     """
-    def visualize(self) -> None:
+    def visualize_extraction(self) -> None:
 
         print()
         print('=======================================================================================================')
@@ -1248,6 +1276,42 @@ class Preprocess():
 
         return
 
+    """
+    ====================================================================================================================
+    Display Hitogram of MR and CT
+    ====================================================================================================================
+    """  
+    def display_histogram(self) -> None:
+
+        print()
+        print('=======================================================================================================')
+        print('Display Hitogram of MR and CT')
+        print('=======================================================================================================')
+        print()
+
+        for i in range(self.len):
+
+            # Load Data
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32').flatten()
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32').flatten()
+
+            # Create the plot
+            fig, axs = plt.subplots(1, 2, figsize = (5, 10))
+
+            axs[0].hist(image, bins = 1000, range = (-1, 1))
+            axs[0].set_ylim(0, np.percentile(image, 99))
+
+            axs[1].hist(label, bins = 1000, range = (-1000, 3000)) 
+            axs[1].set_ylim(0, np.percentile(label, 5))
+
+            # plt.hist()
+
+            plt.show()
+
+            break
+
+        return
+    
 
 """
 ========================================================================================================================
