@@ -165,10 +165,10 @@ class Preprocess():
         Slice + Remove Redundant Area
         ================================================================================================================
         """
-        # # Slice
-        # self.random_slice(threshold = 0.0)
+        # Slice
+        self.random_slice(threshold = 0.075)
         # # Slice with Specific Order
-        # self.ordered_slice(threshold = 0.0)
+        # self.ordered_slice(threshold = 0.075)
 
         """
         ================================================================================================================
@@ -182,8 +182,8 @@ class Preprocess():
         # # Visulize Brain and Skull Extraction Result
         # self.visualize_extraction()
 
-        # Display Histogram
-        self.display_histogram()
+        # # Display Histogram
+        # self.display_histogram()
 
         return
     
@@ -873,12 +873,36 @@ class Preprocess():
             skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
 
             # Find Blank Slice Index
-            lower = -1
-            upper = -1
+            lower_overall = -1
+            upper_overall = -1
             for k in range(hmask.shape[2]):
                 
                 # Ratio of Head Region to Whole Slice
                 ratio = hmask[:, :, k].sum() / (hmask.shape[0] * hmask.shape[1])
+
+                # Lower Bound
+                if (ratio > 0) and (lower_overall == -1):
+                    lower_overall = k
+                    continue
+                # Upper Bound
+                if (ratio <= 0) and (lower_overall != -1) and (upper_overall == -1):
+                    upper_overall = k
+                    break
+
+            # Extreme Case
+            if upper_overall == -1:
+                upper_overall = hmask.shape[2] - 1
+
+            # Temporal Mask
+            tmask = np.where(image > -1, 1, 0)
+                
+            # Find Blank Slice Index
+            lower = -1
+            upper = -1
+            for k in range(tmask.shape[2]):
+                
+                # Ratio of Head Region to Whole Slice
+                ratio = tmask[:, :, k].sum() / (tmask.shape[0] * tmask.shape[1])
 
                 # Lower Bound
                 if (ratio > threshold) and (lower == -1):
@@ -888,6 +912,10 @@ class Preprocess():
                 if (ratio <= threshold) and (lower != -1) and (upper == -1):
                     upper = k
                     break
+
+            # Extreme Case
+            if upper == -1:
+                upper = tmask.shape[2] - 1
 
             # Slice
             for k in range(lower + 3, upper - 3):
@@ -1029,12 +1057,36 @@ class Preprocess():
             skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
             
             # Find Blank Slice Index
-            lower = -1
-            upper = -1
+            lower_overall = -1
+            upper_overall = -1
             for k in range(hmask.shape[2]):
                 
                 # Ratio of Head Region to Whole Slice
                 ratio = hmask[:, :, k].sum() / (hmask.shape[0] * hmask.shape[1])
+
+                # Lower Bound
+                if (ratio > 0) and (lower_overall == -1):
+                    lower_overall = k
+                    continue
+                # Upper Bound
+                if (ratio <= 0) and (lower_overall != -1) and (upper_overall == -1):
+                    upper_overall = k
+                    break
+
+            # Extreme Case
+            if upper_overall == -1:
+                upper_overall = hmask.shape[2] - 1
+
+            # Temporal Mask
+            tmask = np.where(image > -1, 1, 0)
+                
+            # Find Blank Slice Index
+            lower = -1
+            upper = -1
+            for k in range(tmask.shape[2]):
+                
+                # Ratio of Head Region to Whole Slice
+                ratio = tmask[:, :, k].sum() / (tmask.shape[0] * tmask.shape[1])
 
                 # Lower Bound
                 if (ratio > threshold) and (lower == -1):
@@ -1044,6 +1096,10 @@ class Preprocess():
                 if (ratio <= threshold) and (lower != -1) and (upper == -1):
                     upper = k
                     break
+
+            # Extreme Case
+            if upper == -1:
+                upper = tmask.shape[2] - 1
 
             # Slice
             for k in range(lower + 3, upper - 3):
@@ -1079,19 +1135,19 @@ class Preprocess():
                 nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
 
             # Remove Redundant Area + Save Data
-            image = nib.Nifti1Image(image[:, :, lower : upper], np.eye(4))
+            image = nib.Nifti1Image(image[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(image, os.path.join(MR, self.images[i]))
 
-            label = nib.Nifti1Image(label[:, :, lower : upper], np.eye(4))
+            label = nib.Nifti1Image(label[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(label, os.path.join(CT, self.labels[i]))
 
-            hmask = nib.Nifti1Image(hmask[:, :, lower : upper], np.eye(4))
+            hmask = nib.Nifti1Image(hmask[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(hmask, os.path.join(HM, self.hmasks[i]))
     
-            brain = nib.Nifti1Image(brain[:, :, lower : upper], np.eye(4))
+            brain = nib.Nifti1Image(brain[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(brain, os.path.join(BR, self.brains[i]))
 
-            skull = nib.Nifti1Image(skull[:, :, lower : upper], np.eye(4))
+            skull = nib.Nifti1Image(skull[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(skull, os.path.join(SK, self.skulls[i]))
         print()
 

@@ -70,11 +70,11 @@ Interpolate + Rotate
         - .nii File
 
     2. Compute Z-Axis Scale Factor (Python)
-        - Factor = 192 / X or Y-Axis Size
+        - Factor = 256 / X or Y-Axis Size
 
     3. Interpolate (Torch)
         - Trilinear Interpolation
-        - (192, 192, Z-Axis Size * Factor)
+        - (256, 256, Z-Axis Size * Factor)
 
     4. Rotate (NumPy)
         - No.1 ~ No.10 and No.21 ~ No.26
@@ -338,10 +338,10 @@ Slice
         - (# Meaningful Pixel) / (# Whole Pixel) > 0.075
 
     5. Slice (NumPy)
-        - MR: (192, 192, 7)
-        - CT: (192, 192, 1)
-        - HM: (192, 192, 1)
-        - SK: (192, 192, 1)
+        - MR: (256, 256, 7)
+        - CT: (256, 256, 1)
+        - HM: (256, 256, 1)
+        - SK: (256, 256, 1)
         - (X, Y, Z)
     
     6. Transpose (NumPy)
