@@ -23,35 +23,33 @@ Specific Data Behavior
 
 ## ***def main()***
 Contral Overall Pipeline of Preprocessing
-### Fundamental Process
+### Fundamental Image Process
 ---
-    * Change File Format
-    * Interpolate + Rotate
+    * Convert File Format
+    * Apply Transformation
     * Remove Background
-    * Process Intensity
-### Extract Brain Region + Remove Useless Region
+    * Clip Intensity
+### Medical Image Process
 ---
-    * N4 Bias Correction
+    * MR N4 Bias Correction
     * Extract Brain Region
     * Fill Holes in Brain Mask
     * Remove Useless Area
-### Extract Skull Region
----
+    * MR Intensity Normalize
     * Extract Skull Region
-### Normalize + Slice
+### Slice
 ---
-    * MR Normalize
-    * Slice
+    * Slice with Random Order
     * Slice with Specific Order
-### Check Data Behavior
+### Data Behavior
 ---
     * Check Stastistic
     * Check CT Behavior
     * Visualize Brain and Skull Extraction Result
 
 
-## ***def mat2nii()***
-Change File Format
+## ***def convert_format()***
+Convert File Format from .mat to .nii
 
     1. Load Data (SciPy)
         - MR, CT
@@ -62,71 +60,92 @@ Change File Format
         - .nii File
 
 
-## ***def transform()***
-Interpolate + Rotate
+## ***def apply_transformation(mode: str | Literal['interpolate', 'padding'])***
+Rotate + Shift Intensity + Interpolate or Padding
 
     1. Load Data (NiBabel)
         - MR, CT 
         - .nii File
 
-    2. Compute Z-Axis Scale Factor (Python)
-        - Factor = 256 / X or Y-Axis Size
-
-    3. Interpolate (Torch)
-        - Trilinear Interpolation
-        - (256, 256, Z-Axis Size * Factor)
-
-    4. Rotate (NumPy)
+    2. Rotate (NumPy)
         - No.1 ~ No.10 and No.21 ~ No.26
         - Counterclockwise 270 Degree
+
+    3. Deal With CT Extreme Case (Python)
+        - Shift -1000
+
+    4. Interpolate or Padding 
+
+        Interpolate:
+
+            Compute Z-Axis Scale Factor (Python)
+                - Factor = 256 / X or Y-Axis Size
+
+            Interpolate (Torch)
+                - Trilinear Interpolation
+                - (256, 256, Z-Axis Size * Factor)
+
+        Padding:
+
+            Calculate Number of Padding Pixe (Python)
+                - # Pixel = Max(256 - Axis, 0)
+
+            Apply Padding (NumPy)
+                - MR: 0
+                - CT: -1000
+
+            Crop (NumPy)
+                - (256, 256, Z-Axis Size)
     
     5. Save Data (NiBabel)
         - MR, CT
         - .nii File 
 
 
-## ***def background()***
+## ***def remove_background(otsu: bool = False)***
 Remove Background
 
     1. Load Data (NiBabel)
         - MR, CT
         - .nii File
+
+    2. Remove Rough Background of CT (NumPy)
+        - Thresholding with 250 HU
     
-    2. Find Background Threshold (NumPy)
-        - Flatten MR Data
+    3. Find Background Threshold (NumPy)
+        - Flatten CT Data
         - Sort in Ascending Order
         - Get Cumulative Distribution
         - Get Threshold
-            - With CT Artifact
-                - No.5 ~ No.10
-                - 20.0%
-            - Without CT Artifact
-                - No.1 ~ No.4 and No.11 ~ No.26
-                - 12.5%
+            - With Otsu's Algorithm
+                - Find Best Threshold within 1.25% ~ 12.5%
+            - Without Otsu's Algorithm
+                - 2.5%
     
-    3. Thresholding (NumPy)
+    4. Thresholding (NumPy)
 
-    4. Get Head Mask (ndimage)
+    5. Get Head Mask (ndimage)
         - Get Connective Component
         - Compute Size of Each Component
         - Find Largest Component
         - Slect Largest Component
-        - Fill Holes in Mask
-            - Dilation: (25, 25, 25)
-            - Erosion:  (25, 25, 25)
+
+    6. Fill Holes in Mask (ndimage)
+        - Closing the Mask Iteratively Along Z-Axis
+        - First Element Structure: 17
     
-    5. Apply Mask by Setting to Air Value (NumPy)
+    7. Apply Mask by Setting to Air Value (NumPy)
         - Out of Head Mask
         - MR: 0
         - CT: -1000
 
-    6. Save Data (NiBabel)
+    8. Save Data (NiBabel)
         - MR, CT, Head Mask (HM)
         - .nii File
 
 
-## ***def intensity()***
-Process Intensity
+## ***def clip_intensity()***
+Clip Intensity
 ### MR
 ---
 Clip MR14 Intensity
@@ -153,19 +172,16 @@ Clip CT Intensity + Deal With Extreme Case
         - CT
         - .nii File
 
-    2. Deal With Extreme Case (Python)
-        - Shift -1000
-
-    3. Clip Intensity (NumPy)
+    2. Clip Intensity (NumPy)
         - Min: -1000
         - Max: 3000
 
-    4. Save Data (NiBabel)
+    3. Save Data (NiBabel)
         - CT
         - .nii File
 
 
-## ***def n4bias()***
+## ***def correct_bias()***
 N4 Bias Correction
 
     1. Load Data (SimpleITK)
@@ -179,7 +195,7 @@ N4 Bias Correction
         - .nii File
 
 
-## ***def strip()***
+## ***def extract_brain()***
 Extract Brain Region
 
     1. Load Data (ANTsPy)
@@ -194,7 +210,7 @@ Extract Brain Region
         - .nii File
 
 
-## ***def fillhole()***
+## ***def fill_hole()***
 Fill Holes in Brain Mask
 
     1. Load Data (NiBabel)
@@ -205,7 +221,10 @@ Fill Holes in Brain Mask
         - Outside the Head Mask
         - Noise
 
-    3. Fill Holes or Remove Small Component in Every Slice (NumPy + ndimage)
+    3. Thresholding (NumPy)
+        - Convert Probabilistic Map to Binary Map
+
+    4. Fill Holes Along Z-Axis (NumPy + ndimage)
         - Process Slice with Whole Zero
             - Create Zero Mask
         - Thresholding
@@ -213,22 +232,23 @@ Fill Holes in Brain Mask
         - Compute Size of Each Component
         - Find Largest Component
         - Slect Largest Component
-        - Fill Holes in Mask
-            - Dilation: (15, 15)
-            - Erosion:  (15, 15)
+        - Closing the Mask
+            - Element Structure: 15
         
-    4. Stack the Brain Mask (NumPy)
+    5. Stack the Brain Mask (NumPy)
         - (Z, X, Y)
 
-    5. Transpose (NumPy)
+    6. Transpose (NumPy)
         - (X, Y, Z)
 
-    6. Save Data (NiBabel)
+    7. Select the Largest Connect Component of Mask
+
+    8. Save Data (NiBabel)
         - BR
         - .nii File
 
 
-## ***def remove()***
+## ***def remove_uselessness()***
 Remove Useless Area
 
     1. Load Data (NiBabel)
@@ -259,42 +279,7 @@ Remove Useless Area
         - .nii File
 
 
-## ***def extract()***
-Extract Skull Region
-
-    1. Load Data (NiBabel)
-        - CT, BR
-        - .nii File
-    
-    2. Apply Mask by Setting to Air Value (NumPy + ndimage)
-        - Brain Mask Preprocess
-            - Erosion: (13, 13, 13)
-        - Inside the Brain Mask
-    
-    3. Find Skull Threshold (Python)
-        - Remove Air Region
-        - Threshold = (Mean * 1 + STD * 0)
-
-    4. Thresholding (Python)
-
-    5. Get Skull Mask (ndimage)
-        - Get Connective Component
-        - Compute Size of Each Component
-        - Find Largest Component
-        - Slect Largest Component
-        - Fill Holes in Mask
-            - Dilation: (5, 5, 5)
-            - Erosion:  (5, 5, 5)
-
-    6. Apply Mask by Setting to Air Value (NumPy)
-        - Out of Skull Mask
-
-    7. Save Data (NiBabel)
-        - Skull (SK)
-        - .nii File
-
-
-## ***def normalize()***
+## ***def apply_normalization()***
 MR Normalize
 
     1. Load Data (NiBabel)
@@ -315,8 +300,41 @@ MR Normalize
         - .nii File
 
 
-## ***def slice()***
-Slice
+## ***def extract_skull()***
+Extract Skull Region
+
+    1. Load Data (NiBabel)
+        - CT, BR
+        - .nii File
+    
+    2. Remove Brain Region (NumPy + ndimage)
+        - Erosion Brain Mask Preprocess
+            - Element Structure: 13
+        - Inside the Brain Mask
+
+    3. Thresholding (Python)
+        - 250 HU
+
+    4. Get Skull Mask (ndimage)
+        - Get Connective Component
+        - Compute Size of Each Component
+        - Find Largest Component
+        - Slect Largest Component
+
+    5. Fill Holes in Mask
+        - Closing the Mask Iteratively Along Z-Axis
+        - First Element Structure: 7
+
+    6. Apply Mask by Setting to Air Value (NumPy)
+        - Out of Skull Mask
+
+    7. Save Data (NiBabel)
+        - Skull (SK)
+        - .nii File
+
+
+## ***def slice_random()threshold: float = 0.075***
+Slice with Random Seed
 
     1. Shuffle File Name List (Python)
         - MR, CT, HM, SK
@@ -334,35 +352,40 @@ Slice
         - .nii File
         - 3D
 
-    4. Find Lower and Upper Bound Index (NumPy)
+    4. Find Overall Lower and Upper Bound Index (NumPy)
+        - (# Meaningful Pixel) / (# Whole Pixel) > 0
+
+    5. Find Lower and Upper Bound Index (NumPy)
         - (# Meaningful Pixel) / (# Whole Pixel) > 0.075
 
-    5. Slice (NumPy)
+    6. Slice (NumPy)
         - MR: (256, 256, 7)
         - CT: (256, 256, 1)
         - HM: (256, 256, 1)
         - SK: (256, 256, 1)
         - (X, Y, Z)
     
-    6. Transpose (NumPy)
+    7. Transpose (NumPy)
         - (Z, X, Y) 
 
-    7. Rotate (NumPy)
+    8. Rotate (NumPy)
         - Counterclockwise 90 Degree
 
-    8. Save Data (NiBabel)
+    9. Remove Blank Area (NumPy)
+
+    10. Save Data (NiBabel)
         - MR, CT, HM, SK
         - .nii File 
         - 2D
     
-    9. Print and Save the Order of Slicing (Python)
+    11. Print and Save the Order of Slicing (Python)
 
-    10. Reconstruct File Name List (Python)
+    12. Reconstruct File Name List (Python)
         - MR, CT, HM, SK
         - Ascending Sort
 
 
-## ***def specific()***
+## ***def slice_ordered(threshold: float = 0.075)***
 Slice with Specific Order
 
     1. Clear File Name List (Python)
@@ -379,7 +402,7 @@ Slice with Specific Order
     4. Slice as Above Procedure
 
 
-## ***def statistic()***
+## ***def compute_statistic()***
 Check Statistic
 
     1. Load Data (NiBabel)
@@ -409,7 +432,7 @@ Check Statistic
         - STD of STD
 
 
-## ***def checkct()***
+## ***def check_ct()***
 Check CT Behavior
 
     1. Load Data (NiBabel)
@@ -429,7 +452,7 @@ Check CT Behavior
         - Soft Tissue Intensity
 
 
-## ***def visualize()***
+## ***def visualize_extraction()***
 Visulize Brain and Skull Extraction Result
 
     1. Load Data (NiBabel)
