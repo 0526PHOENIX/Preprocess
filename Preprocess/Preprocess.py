@@ -870,7 +870,7 @@ class Preprocess():
                 upper_overall = hmask.shape[2] - 1
 
             # Temporal Mask
-            tmask = np.where(image > -1, 1, 0)
+            tmask = np.where(image > -0.99, 1, 0)
                 
             # Find Blank Slice Index
             lower = -1
@@ -923,15 +923,15 @@ class Preprocess():
                 nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
 
             # Remove Redundant Area + Save Data
-            image = nib.Nifti1Image(image[:, :, lower : upper], np.eye(4))
+            image = nib.Nifti1Image(image[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(image, os.path.join(MR, self.images[i]))
-            label = nib.Nifti1Image(label[:, :, lower : upper], np.eye(4))
+            label = nib.Nifti1Image(label[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(label, os.path.join(CT, self.labels[i]))
-            hmask = nib.Nifti1Image(hmask[:, :, lower : upper], np.eye(4))
+            hmask = nib.Nifti1Image(hmask[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(hmask, os.path.join(HM, self.hmasks[i]))
-            brain = nib.Nifti1Image(brain[:, :, lower : upper], np.eye(4))
+            brain = nib.Nifti1Image(brain[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(brain, os.path.join(BR, self.brains[i]))
-            skull = nib.Nifti1Image(skull[:, :, lower : upper], np.eye(4))
+            skull = nib.Nifti1Image(skull[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(skull, os.path.join(SK, self.skulls[i]))
         print()
 
@@ -1046,7 +1046,7 @@ class Preprocess():
                 upper_overall = hmask.shape[2] - 1
 
             # Temporal Mask
-            tmask = np.where(image > -1, 1, 0)
+            tmask = np.where(image > -0.99, 1, 0)
                 
             # Find Blank Slice Index
             lower = -1
