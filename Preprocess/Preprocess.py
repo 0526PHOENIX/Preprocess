@@ -36,17 +36,19 @@ Global Constant
 MR_RAW = ""
 CT_RAW = ""
 
-MR = ""
-CT = ""
-HM = ""
-BR = ""
-SK = ""
-VS = ""
+MR = "C:/Users/user/Desktop/Data/Data/MR"
+CT = "C:/Users/user/Desktop/Data/Data/CT"
+HM = "C:/Users/user/Desktop/Data/Data/HM"
+BR = "C:/Users/user/Desktop/Data/Data/BR"
+SK = "C:/Users/user/Desktop/Data/Data/SK"
+VS = "C:/Users/user/Desktop/Data/Data/VS"
 
-DATA_2D = ""
+EQ = "C:/Users/user/Desktop/Data/Data/EQ"
 
-PATH_LIST = [MR, CT, HM, BR, SK, VS, DATA_2D]
+DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
 
+
+PATH_LIST = [MR, CT, HM, BR, SK, VS, EQ, DATA_2D]
 
 """
 ========================================================================================================================
@@ -75,7 +77,7 @@ class Preprocess():
 
         # Data_2D File Path
         for dataset in ['Train', 'Val', 'Test']:
-            for data in ['MR', 'CT', 'HM', 'BR', 'SK']:
+            for data in ['MR', 'CT', 'HM', 'BR', 'SK', 'EQ']:
                 path = os.path.join(os.path.join(DATA_2D, dataset, data))
                 if not os.path.exists(path):
                     os.makedirs(path)
@@ -90,6 +92,8 @@ class Preprocess():
             self.brains = os.listdir(BR)
         if os.listdir(SK):
             self.skulls = os.listdir(SK)
+        if os.listdir(EQ):
+            self.equals = os.listdir(EQ)
 
         # Check File Number
         if len(self.images) != len(self.labels):
@@ -120,40 +124,40 @@ class Preprocess():
         Fundamental Image Process
         ================================================================================================================
         """
-        # Convert File Format
-        self.convert_format()
-        # Apply Transformation
-        self.apply_transformation(mode = 'interpolate')
-        # Remove Background
-        self.remove_background(otsu = False)
-        # Clip Intensity
-        self.clip_intensity()
+        # # Convert File Format
+        # self.convert_format()
+        # # Apply Transformation
+        # self.apply_transformation(mode = 'interpolate')
+        # # Remove Background
+        # self.remove_background(otsu = False)
+        # # Clip Intensity
+        # self.clip_intensity()
 
         """
         ================================================================================================================
         Medical Image Process
         ================================================================================================================
         """
-        # MR N4 Bias Correction
-        self.correct_bias()
-        # Extract Brain Region
-        self.extract_brain()
-        # Fill Holes in Brain Mask
-        self.fill_hole()
-        # Remove Useless Area
-        self.remove_uselessness()
-        # MR Intensity Normalize
-        self.apply_normalization()
-        # Extract Slull Region
-        self.extract_skull()
+        # # MR N4 Bias Correction
+        # self.correct_bias()
+        # # Extract Brain Region
+        # self.extract_brain()
+        # # Fill Holes in Brain Mask
+        # self.fill_hole()
+        # # Remove Useless Area
+        # self.remove_uselessness()
+        # # MR Intensity Normalize
+        # self.apply_normalization()
+        # # Extract Slull Region
+        # self.extract_skull()
 
         """
         ================================================================================================================
         Slice
         ================================================================================================================
         """
-        # Slice with Random Order
-        self.slice_random(threshold = 0.075)
+        # # Slice with Random Order
+        # self.slice_random(threshold = 0.075)
         # Slice with Specific Order
         self.slice_ordered(threshold = 0.075)
 
@@ -162,12 +166,12 @@ class Preprocess():
         Check Data Behavior
         ================================================================================================================
         """
-        # Check Statistic
-        self.compute_statistic()
-        # Check CT Behavior
-        self.check_ct()
-        # Visulize Brain and Skull Extraction Result
-        self.visualize_extraction()
+        # # Check Statistic
+        # self.compute_statistic()
+        # # Check CT Behavior
+        # self.check_ct()
+        # # Visulize Brain and Skull Extraction Result
+        # self.visualize_extraction()
 
         return
     
@@ -822,13 +826,13 @@ class Preprocess():
         print()
 
         # Combine File Name List
-        buffer = list(zip(self.images, self.labels, self.hmasks, self.brains, self.skulls))
+        buffer = list(zip(self.images, self.labels, self.hmasks, self.brains, self.skulls, self.equals))
 
         # Random Shuffle Simultaneously
         random.shuffle(buffer)
 
         # Separate File Name List
-        self.images, self.labels, self.hmasks, self.brains, self.skulls = map(list, zip(*buffer))
+        self.images, self.labels, self.hmasks, self.brains, self.skulls, self.equals = map(list, zip(*buffer))
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -847,6 +851,7 @@ class Preprocess():
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
             brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
             skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
+            equal = nib.load(os.path.join(EQ, self.equals[i])).get_fdata().astype('float32')
 
             # Find Blank Slice Index
             lower_overall = -1
@@ -902,6 +907,7 @@ class Preprocess():
                 hm = hmask[:, :, k : k + 1]
                 br = brain[:, :, k : k + 1]
                 sk = skull[:, :, k : k + 1]
+                eq = equal[:, :, k - 3 : k + 3 + 1]
 
                 # Transpose (Z, X, Y) + Rotate
                 mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
@@ -909,6 +915,7 @@ class Preprocess():
                 hm = np.rot90(hm.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 br = np.rot90(br.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 sk = np.rot90(sk.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                eq = np.rot90(eq.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
                 mr = nib.Nifti1Image(mr, np.eye(4))
@@ -921,6 +928,8 @@ class Preprocess():
                 nib.save(br, os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(k) + '.nii'))
                 sk = nib.Nifti1Image(sk, np.eye(4))
                 nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
+                eq = nib.Nifti1Image(eq, np.eye(4))
+                nib.save(eq, os.path.join(DATA_2D, dataset, 'EQ', self.equals[i][:-4] + '_' + str(k) + '.nii'))
 
             # Remove Redundant Area + Save Data
             image = nib.Nifti1Image(image[:, :, lower_overall : upper_overall], np.eye(4))
@@ -933,6 +942,8 @@ class Preprocess():
             nib.save(brain, os.path.join(BR, self.brains[i]))
             skull = nib.Nifti1Image(skull[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(skull, os.path.join(SK, self.skulls[i]))
+            equal = nib.Nifti1Image(equal[:, :, lower_overall : upper_overall], np.eye(4))
+            nib.save(equal, os.path.join(EQ, self.equals[i]))
         print()
 
         # Check Training, Validation, Testing Set
@@ -964,6 +975,7 @@ class Preprocess():
         self.hmasks.sort()
         self.brains.sort()
         self.skulls.sort()
+        self.equals.sort()
 
         return
 
@@ -986,6 +998,7 @@ class Preprocess():
         self.hmasks.clear()
         self.brains.clear()
         self.skulls.clear()
+        self.equals.clear()
 
         # Open File of Specifice Order
         with open(os.path.join(DATA_2D, 'Slice.txt'), 'r') as file:
@@ -1005,6 +1018,7 @@ class Preprocess():
                     self.hmasks.append('HM' + str(num) + '.nii')
                     self.brains.append('BR' + str(num) + '.nii')
                     self.skulls.append('SK' + str(num) + '.nii')
+                    self.equals.append('EQ' + str(num) + '.nii')
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -1023,6 +1037,7 @@ class Preprocess():
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
             brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
             skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
+            equal = nib.load(os.path.join(EQ, self.equals[i])).get_fdata().astype('float32')
             
             # Find Blank Slice Index
             lower_overall = -1
@@ -1078,6 +1093,7 @@ class Preprocess():
                 hm = hmask[:, :, k : k + 1]
                 br = brain[:, :, k : k + 1]
                 sk = skull[:, :, k : k + 1]
+                eq = equal[:, :, k - 3 : k + 3 + 1]
 
                 # Transpose (Z, X, Y) + Rotate
                 mr = np.rot90(mr.transpose(2, 0, 1), k = 1, axes = (1, 2))
@@ -1085,6 +1101,7 @@ class Preprocess():
                 hm = np.rot90(hm.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 br = np.rot90(br.transpose(2, 0, 1), k = 1, axes = (1, 2))
                 sk = np.rot90(sk.transpose(2, 0, 1), k = 1, axes = (1, 2))
+                eq = np.rot90(eq.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
                 mr = nib.Nifti1Image(mr, np.eye(4))
@@ -1097,6 +1114,8 @@ class Preprocess():
                 nib.save(br, os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(k) + '.nii'))
                 sk = nib.Nifti1Image(sk, np.eye(4))
                 nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
+                eq = nib.Nifti1Image(eq, np.eye(4))
+                nib.save(eq, os.path.join(DATA_2D, dataset, 'EQ', self.equals[i][:-4] + '_' + str(k) + '.nii'))
 
             # Remove Redundant Area + Save Data
             image = nib.Nifti1Image(image[:, :, lower_overall : upper_overall], np.eye(4))
@@ -1109,6 +1128,8 @@ class Preprocess():
             nib.save(brain, os.path.join(BR, self.brains[i]))
             skull = nib.Nifti1Image(skull[:, :, lower_overall : upper_overall], np.eye(4))
             nib.save(skull, os.path.join(SK, self.skulls[i]))
+            equal = nib.Nifti1Image(equal[:, :, lower_overall : upper_overall], np.eye(4))
+            nib.save(equal, os.path.join(EQ, self.equals[i]))
         print()
 
         # Check Training, Validation, Testing Set
@@ -1134,6 +1155,7 @@ class Preprocess():
         self.hmasks.sort()
         self.brains.sort()
         self.skulls.sort()
+        self.equals.sort()
 
         return
 

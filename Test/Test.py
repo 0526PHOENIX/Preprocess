@@ -25,21 +25,6 @@ from tqdm import tqdm
 
 import numpy as np
 import nibabel as nib
-import SimpleITK as sitk
-
-import matplotlib.pyplot as plt
-
-from scipy import io
-from scipy import ndimage
-
-import ants
-from antspynet.utilities import brain_extraction
-
-import torch
-import torch.nn.functional as F
-
-from Utils import *
-
 
 """
 ========================================================================================================================
@@ -56,23 +41,9 @@ BR = "C:/Users/user/Desktop/Data/Data/BR"
 SK = "C:/Users/user/Desktop/Data/Data/SK"
 VS = "C:/Users/user/Desktop/Data/Data/VS"
 
+EQ = "C:/Users/user/Desktop/Data/Data/EQ"
+
 DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
-
-
-METRICS = 11
-
-LOSS_PIX = 0
-LOSS_GDL = 1
-LOSS_SIM = 2
-LOSS_PER = 3
-
-METRICS_HEAD_MAE    = 4
-METRICS_HEAD_PSNR   = 5
-METRICS_HEAD_SSIM   = 6
-METRICS_BONE_MAE    = 7
-METRICS_BONE_PSNR   = 8
-METRICS_BONE_SSIM   = 9
-METRICS_BONE_DICE   = 10
 
 
 """
@@ -95,12 +66,18 @@ class Test():
         print('=======================================================================================================')
         print()
 
+        # Data_2D File Path
+        for dataset in ['Train', 'Val', 'Test']:
+            for data in ['MR', 'CT', 'HM', 'BR', 'SK', 'EQ']:
+                path = os.path.join(os.path.join(DATA_2D, dataset, data))
+                if not os.path.exists(path):
+                    os.makedirs(path)
+
         # Get File Name
         self.images = os.listdir(MR)
         self.labels = os.listdir(CT)
         self.hmasks = os.listdir(HM)
-        self.brains = os.listdir(BR)
-        self.skulls = os.listdir(SK)
+        self.equals = os.listdir(EQ)
 
         # Check File Number
         if len(self.images) != len(self.labels):
@@ -109,15 +86,12 @@ class Test():
         # Get File Number
         self.len = 26
 
-        # Loss
-        self.loss = Loss(torch.device('cuda'))
-        self.metrics = Metrics(torch.device('cuda'))
-
         # Log
         print('Done !')
         print()
 
         return
+    
     """
     ====================================================================================================================
     Main Process
@@ -126,6 +100,8 @@ class Test():
     def main(self) -> None:
 
         self.histogram_equalization()
+
+        self.slice_ordered(threshold = 0.075)
 
         return
 
@@ -172,7 +148,145 @@ class Test():
             
             # Save Data
             equal = nib.Nifti1Image(equal, np.eye(4))
-            nib.save(equal, os.path.join("./Test", 'Test' + self.images[i][2:]))
+            nib.save(equal, os.path.join(EQ, 'EQ' + self.images[i][2:]))
+
+        return
+    
+    """
+    ====================================================================================================================
+    Slice with Specific Order + Remove Redundant Area
+    ====================================================================================================================
+    """ 
+    def slice_ordered(self, threshold: float = 0.075) -> None:
+
+        print()
+        print('=======================================================================================================')
+        print('Slice with Specific Order + Remove Redundant Area')
+        print('=======================================================================================================')
+        print()
+
+        # Clear File Name List
+        self.images.clear()
+        self.equals.clear()
+        self.hmasks.clear()
+
+        # Open File of Specifice Order
+        with open(os.path.join(DATA_2D, 'Slice.txt'), 'r') as file:
+            lines = file.readlines()
+
+        # Get Specific Order
+        for line in lines:
+
+            # Split Out Numerical Part
+            nums = line.split()
+
+            # Form New File Name List with Specific Order
+            for num in nums:
+                if num.isdigit():
+                    self.images.append('MR' + str(num) + '.nii')
+                    self.equals.append('EQ' + str(num) + '.nii')
+                    self.hmasks.append('HM' + str(num) + '.nii')
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+
+            if i < 20:
+                dataset = 'Train'
+            elif i < 24:
+                dataset = 'Val'
+            elif i < 26:
+                dataset = 'Test'
+
+            # Load Data and Backgrond
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            equal = nib.load(os.path.join(EQ, self.equals[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
+            
+            # Find Blank Slice Index
+            lower_overall = -1
+            upper_overall = -1
+            for k in range(hmask.shape[2]):
+                
+                # Ratio of Head Region to Whole Slice
+                ratio = hmask[:, :, k].sum() / (hmask.shape[0] * hmask.shape[1])
+
+                # Lower Bound
+                if (ratio > 0) and (lower_overall == -1):
+                    lower_overall = k
+                    continue
+                # Upper Bound
+                if (ratio <= 0) and (lower_overall != -1) and (upper_overall == -1):
+                    upper_overall = k
+                    break
+
+            # Extreme Case
+            if upper_overall == -1:
+                upper_overall = hmask.shape[2] - 1
+
+            # Temporal Mask
+            tmask = np.where(image > -0.99, 1, 0)
+                
+            # Find Blank Slice Index
+            lower = -1
+            upper = -1
+            for k in range(tmask.shape[2]):
+                
+                # Ratio of Head Region to Whole Slice
+                ratio = tmask[:, :, k].sum() / (tmask.shape[0] * tmask.shape[1])
+
+                # Lower Bound
+                if (ratio > threshold) and (lower == -1):
+                    lower = k
+                    continue
+                # Upper Bound
+                if (ratio <= threshold) and (lower != -1) and (upper == -1):
+                    upper = k
+                    break
+
+            # Extreme Case
+            if upper == -1:
+                upper = tmask.shape[2] - 1
+
+            # Slice
+            for k in range(lower + 3, upper - 3):
+                
+                # (256, 256, 7) and (256, 256, 1)
+                eq = equal[:, :, k - 3 : k + 3 + 1]
+
+                # Transpose (Z, X, Y) + Rotate
+                eq = np.rot90(eq.transpose(2, 0, 1), k = 1, axes = (1, 2))
+
+                # Save Data
+                eq = nib.Nifti1Image(eq, np.eye(4))
+                nib.save(eq, os.path.join(DATA_2D, dataset, 'EQ', self.equals[i][:-4] + '_' + str(k) + '.nii'))
+
+            # Remove Redundant Area + Save Data
+            equal = nib.Nifti1Image(equal[:, :, lower_overall : upper_overall], np.eye(4))
+            nib.save(equal, os.path.join(EQ, self.equals[i]))
+        print()
+
+        # Check Training, Validation, Testing Set
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Train')
+        print('-------------------------------------------------------------------------------------------------------')
+        print(*sorted([file[2:4] for file in self.equals[:20]]))
+        print()
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Val')
+        print('-------------------------------------------------------------------------------------------------------')
+        print(*sorted([file[2:4] for file in self.equals[20:24]]))
+        print()
+        print('-------------------------------------------------------------------------------------------------------')
+        print('Test')
+        print('-------------------------------------------------------------------------------------------------------')
+        print(*sorted([file[2:4] for file in self.equals[24:]]))
+        print()
+
+        # Ascending Sort File Name List
+        self.images.sort()
+        self.equals.sort()
+        self.hmasks.sort()
 
         return
 

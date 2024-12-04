@@ -25,18 +25,10 @@ from tqdm import tqdm
 
 import numpy as np
 import nibabel as nib
-import SimpleITK as sitk
 
 import matplotlib.pyplot as plt
 
-from scipy import io
-from scipy import ndimage
-
-import ants
-from antspynet.utilities import brain_extraction
-
 import torch
-import torch.nn.functional as F
 
 from Utils import *
 
@@ -180,8 +172,18 @@ class Analysis():
         hist_label_val = np.zeros(bins)
         hist_image_test = np.zeros(bins)
         hist_label_test = np.zeros(bins)
+
+        # Data Range
         image_min, image_max = -1, 1
         label_min, label_max = -1000, 3000
+
+        # Plot histograms
+        fig, axs = plt.subplots(4, 2)
+
+        # Remove Redundancy
+        for ax in axs.flat:
+            ax.set_yticks([])
+            ax.set_ylim(0, 1 / bins * 4)
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -192,12 +194,15 @@ class Analysis():
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
+            # Remove Background + Flatten Image
             image = image[hmask]
             label = label[hmask]
 
+            # Histogram
             temp_image = np.histogram(image, bins = bins, range = (image_min, image_max))[0].astype('float32')
             temp_label = np.histogram(label, bins = bins, range = (label_min, label_max))[0].astype('float32')
 
+            # Split Set
             if i < 20:
                 hist_image_train += temp_image
                 hist_label_train += temp_label
@@ -209,9 +214,11 @@ class Analysis():
                 hist_label_test += temp_label
         print()
 
+        # Overall Histogram
         hist_image = hist_image_train + hist_image_val + hist_image_test
         hist_label = hist_label_train + hist_label_val + hist_label_test
         
+        # [0, 1]
         hist_image /= hist_image.sum()
         hist_label /= hist_label.sum()
         hist_image_train /= hist_image_train.sum()
@@ -221,53 +228,47 @@ class Analysis():
         hist_image_test /= hist_image_test.sum()
         hist_label_test /= hist_label_test.sum()
 
-        # Plot histograms
-        fig, axs = plt.subplots(4, 2)
-
-        for ax in axs.flat:
-            ax.set_yticks([])
-            ax.set_ylim(0, 1 / bins * 4)
-
-        # MR image histogram
+        # MR histogram
         ax = axs[0][0]
         ax.bar(np.linspace(image_min, image_max, bins), hist_image, width = (image_max - image_min) / bins)
         ax.set_ylabel('Overall MR')
 
-        # CT label histogram
+        # CT Histogram
         ax = axs[0][1]
         ax.bar(np.linspace(label_min, label_max, bins), hist_label, width = (label_max - label_min) / bins)
         ax.set_ylabel('Overall CT')
         
-        # MR train image histogram
+        # MR Train Histogram
         ax = axs[1][0]
         ax.bar(np.linspace(image_min, image_max, bins), hist_image_train, width = (image_max - image_min) / bins)
         ax.set_ylabel('Training Set MR')
 
-        # CT train label histogram
+        # CT Train Histogram
         ax = axs[1][1]
         ax.bar(np.linspace(label_min, label_max, bins), hist_label_train, width = (label_max - label_min) / bins)
         ax.set_ylabel('Training Set CT')
 
-        # MR val image histogram
+        # MR Val Histogram
         ax = axs[2][0]
         ax.bar(np.linspace(image_min, image_max, bins), hist_image_val, width = (image_max - image_min) / bins)
         ax.set_ylabel('Validataion Set MR')
 
-        # CT val label histogram
+        # CT Val Histogram
         ax = axs[2][1]
         ax.bar(np.linspace(label_min, label_max, bins), hist_label_val, width = (label_max - label_min) / bins)
         ax.set_ylabel('Validataion Set CT')
 
-        # MR test image histogram
+        # MR Test Histogram
         ax = axs[3][0]
         ax.bar(np.linspace(image_min, image_max, bins), hist_image_test, width = (image_max - image_min) / bins)
         ax.set_ylabel('Testing Set MR')
 
-        # CT test label histogram
+        # CT Test Histogram
         ax = axs[3][1]
         ax.bar(np.linspace(label_min, label_max, bins), hist_label_test, width = (label_max - label_min) / bins)
         ax.set_ylabel('Testing Set CT')
 
+        # Show Figure
         plt.show()
 
         # Ascending Sort File Name List
@@ -290,7 +291,7 @@ class Analysis():
         print('=======================================================================================================')
         print()
 
-        # Initialize cumulative histogram bins
+        # Data Range
         image_min, image_max = -1, 1
         label_min, label_max = -1000, 3000
 
@@ -298,6 +299,7 @@ class Analysis():
         fig_image, axs_image = plt.subplots(4, 7)
         fig_label, axs_label = plt.subplots(4, 7)
 
+        # Remove Redundancy
         for ax_image, ax_label in zip(axs_image.flat, axs_label.flat):
             ax_image.set_yticks([])
             ax_label.set_yticks([])
@@ -313,24 +315,30 @@ class Analysis():
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
+            # Remove Background + Flatten Image
             image = image[hmask]
             label = label[hmask]
 
+            # Histogram
             hist_image_subject = np.histogram(image, bins = bins, range = (image_min, image_max))[0].astype('float32')
             hist_label_subject = np.histogram(label, bins = bins, range = (label_min, label_max))[0].astype('float32')
 
+            # [0, 1]
             hist_image_subject /= hist_image_subject.sum()
             hist_label_subject /= hist_label_subject.sum()
-            
+
+            # MR Histogram
             ax_image = axs_image[i // 7][i % 7]
             ax_image.bar(np.linspace(image_min, image_max, bins), hist_image_subject, width = (image_max - image_min) / bins)
             ax_image.set_ylabel(self.images[i])
 
+            # CT Histogram
             ax_label = axs_label[i // 7][i % 7]
             ax_label.bar(np.linspace(label_min, label_max, bins), hist_label_subject, width = (label_max - label_min) / bins)
             ax_label.set_ylabel(self.labels[i])
         print()
 
+        # Show Figure
         plt.show()
 
         return
@@ -367,19 +375,23 @@ class Analysis():
             label /= 4000
             label = (label * 2) - 1
 
+            # Loss
             pix, gdl, sim, per = self.loss.eva_head(image, label)
 
-            image = ((image + 1) * 2000) - 1000
-            label = ((label + 1) * 2000) - 1000
-
-            head_mae, head_psnr, head_ssim = self.metrics.eva_head(image, label, hmask)
-            bone_mae, bone_psnr, bone_ssim, bone_dice = self.metrics.eva_bone(image, skull, hmask, brain)
-
-            # Save Metrics
+            # Save Loss
             metrics[LOSS_PIX, i] = pix
             metrics[LOSS_GDL, i] = gdl
             metrics[LOSS_SIM, i] = sim
             metrics[LOSS_PER, i] = per
+
+            # [-1000, 3000]
+            image = ((image + 1) * 2000) - 1000
+            label = ((label + 1) * 2000) - 1000
+
+            # Metrics
+            head_mae, head_psnr, head_ssim = self.metrics.eva_head(image, label, hmask)
+            bone_mae, bone_psnr, bone_ssim, bone_dice = self.metrics.eva_bone(image, skull, hmask, brain)
+
             # Save Metrics
             metrics[METRICS_HEAD_MAE, i]  = head_mae
             metrics[METRICS_HEAD_PSNR, i] = head_psnr
