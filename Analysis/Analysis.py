@@ -21,9 +21,6 @@ else:
     # Lab Local
     sys.path.append("C:/Users/user/Desktop/Data")
 
-import random
-
-from typing import Literal
 from tqdm import tqdm
 
 import numpy as np
@@ -58,6 +55,8 @@ HM = "C:/Users/user/Desktop/Data/Data/HM"
 BR = "C:/Users/user/Desktop/Data/Data/BR"
 SK = "C:/Users/user/Desktop/Data/Data/SK"
 VS = "C:/Users/user/Desktop/Data/Data/VS"
+
+TP = "C:/Users/user/Desktop/Data/Test/Test"
 
 DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
 
@@ -129,11 +128,11 @@ class Analysis():
     """
     def main(self) -> None:
 
-        # self.histogram_overall(5000)
+        self.histogram_overall(5000)
 
         # self.histogram_subject(5000)
 
-        self.loss_and_metrics()
+        # self.loss_and_metrics()
 
         return
 
@@ -189,12 +188,12 @@ class Analysis():
         for i in progress:
 
             # Load Data and Backgrond
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32').flatten()
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32').flatten()
-            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool').flatten()
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
-            image = np.where(hmask, image, -3000)[image != -3000]
-            label = np.where(hmask, label, -3000)[label != -3000]
+            image = image[hmask]
+            label = label[hmask]
 
             temp_image = np.histogram(image, bins = bins, range = (image_min, image_max))[0].astype('float32')
             temp_label = np.histogram(label, bins = bins, range = (label_min, label_max))[0].astype('float32')
@@ -213,29 +212,21 @@ class Analysis():
         hist_image = hist_image_train + hist_image_val + hist_image_test
         hist_label = hist_label_train + hist_label_val + hist_label_test
         
-        hist_image /= np.sum(hist_image)
-        hist_label /= np.sum(hist_label)
-        hist_image_train /= np.sum(hist_image_train)
-        hist_label_train /= np.sum(hist_label_train)
-        hist_image_val /= np.sum(hist_image_val)
-        hist_label_val /= np.sum(hist_label_val)
-        hist_image_test /= np.sum(hist_image_test)
-        hist_label_test /= np.sum(hist_label_test)
-
-        hist_image = np.clip(hist_image, 0, hist_image[1:].max())
-        hist_label = np.clip(hist_label, 0, hist_label[1:].max())
-        hist_image_train = np.clip(hist_image_train, 0, hist_image_train[1:].max())
-        hist_label_train = np.clip(hist_label_train, 0, hist_label_train[1:].max())
-        hist_image_val = np.clip(hist_image_val, 0, hist_image_val[1:].max())
-        hist_label_val = np.clip(hist_label_val, 0, hist_label_val[1:].max())
-        hist_image_test = np.clip(hist_image_test, 0, hist_image_test[1:].max())
-        hist_label_test = np.clip(hist_label_test, 0, hist_label_test[1:].max())
+        hist_image /= hist_image.sum()
+        hist_label /= hist_label.sum()
+        hist_image_train /= hist_image_train.sum()
+        hist_label_train /= hist_label_train.sum()
+        hist_image_val /= hist_image_val.sum()
+        hist_label_val /= hist_label_val.sum()
+        hist_image_test /= hist_image_test.sum()
+        hist_label_test /= hist_label_test.sum()
 
         # Plot histograms
         fig, axs = plt.subplots(4, 2)
 
         for ax in axs.flat:
             ax.set_yticks([])
+            ax.set_ylim(0, 1 / bins * 4)
 
         # MR image histogram
         ax = axs[0][0]
@@ -300,8 +291,6 @@ class Analysis():
         print()
 
         # Initialize cumulative histogram bins
-        hist_image_subject = np.zeros(bins)
-        hist_label_subject = np.zeros(bins)
         image_min, image_max = -1, 1
         label_min, label_max = -1000, 3000
 
@@ -312,28 +301,27 @@ class Analysis():
         for ax_image, ax_label in zip(axs_image.flat, axs_label.flat):
             ax_image.set_yticks([])
             ax_label.set_yticks([])
+            ax_image.set_ylim(0, 1 / bins * 4)
+            ax_label.set_ylim(0, 1 / bins * 4)
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
         for i in progress:
 
             # Load Data and Backgrond
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32').flatten()
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32').flatten()
-            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool').flatten()
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
-            image = np.where(hmask, image, -3000)[image != -3000]
-            label = np.where(hmask, label, -3000)[label != -3000]
+            image = image[hmask]
+            label = label[hmask]
 
             hist_image_subject = np.histogram(image, bins = bins, range = (image_min, image_max))[0].astype('float32')
             hist_label_subject = np.histogram(label, bins = bins, range = (label_min, label_max))[0].astype('float32')
 
-            hist_image_subject /= np.sum(hist_image_subject)
-            hist_label_subject /= np.sum(hist_label_subject)
-
-            hist_image_subject = np.clip(hist_image_subject, 0, hist_image_subject[1:].max())
-            hist_label_subject = np.clip(hist_label_subject, 0, hist_label_subject[1:].max())
-
+            hist_image_subject /= hist_image_subject.sum()
+            hist_label_subject /= hist_label_subject.sum()
+            
             ax_image = axs_image[i // 7][i % 7]
             ax_image.bar(np.linspace(image_min, image_max, bins), hist_image_subject, width = (image_max - image_min) / bins)
             ax_image.set_ylabel(self.images[i])
