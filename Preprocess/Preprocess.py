@@ -36,16 +36,16 @@ Global Constant
 MR_RAW = ""
 CT_RAW = ""
 
-MR = "C:/Users/user/Desktop/Data/Data/MR"
-CT = "C:/Users/user/Desktop/Data/Data/CT"
-HM = "C:/Users/user/Desktop/Data/Data/HM"
-BR = "C:/Users/user/Desktop/Data/Data/BR"
-SK = "C:/Users/user/Desktop/Data/Data/SK"
-VS = "C:/Users/user/Desktop/Data/Data/VS"
+MR = "/home/phoenix/Data/Data/MR"
+CT = "/home/phoenix/Data/Data/CT"
+HM = "/home/phoenix/Data/Data/HM"
+BR = "/home/phoenix/Data/Data/BR"
+SK = "/home/phoenix/Data/Data/SK"
+VS = "/home/phoenix/Data/Data/VS"
 
-EQ = "C:/Users/user/Desktop/Data/Data/EQ"
+EQ = "/home/phoenix/Data/Data/EQ"
 
-DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
+DATA_2D = "/home/phoenix/Data/Data_2D"
 
 
 PATH_LIST = [MR, CT, HM, BR, SK, VS, EQ, DATA_2D]
@@ -1190,16 +1190,13 @@ class Preprocess():
         for i in range(self.len):
 
             # Load Data
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32').flatten()
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32').flatten()
-            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool').flatten()
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
-            # # Remove Air Region
-            # image = np.where(hmask, image, 0)
-            # label = np.where(hmask, label, -250)
-
-            # image = image[image > 0]
-            # label = label[label > -250]
+            # Remove Air Region
+            image = image[hmask]
+            label = label[hmask]
 
             # Save Mean and STD
             mr_mean.append(image.mean())
