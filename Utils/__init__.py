@@ -11,5 +11,4 @@ else:
     sys.path.append("C:/Users/user/Desktop/Data/Utils")
 
 
-from Utils.Loss import Loss
 from Utils.Metrics import Metrics

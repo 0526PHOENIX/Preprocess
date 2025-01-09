@@ -65,9 +65,9 @@ class Preprocess():
     def __init__(self) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Initialization')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Check File Path
@@ -183,9 +183,9 @@ class Preprocess():
     def convert_format(self) -> None:
         
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Convert File Format from .mat to .nii')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Raw File Name
@@ -221,9 +221,9 @@ class Preprocess():
     def apply_transformation(self, mode: str | Literal['interpolate', 'padding'] = 'interpolate') -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Rotate + Shift Intensity + Interpolate or Padding')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Progress Bar
@@ -299,9 +299,9 @@ class Preprocess():
     def remove_background(self, otsu: bool = False) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Remove Background')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Progress Bar
@@ -428,14 +428,14 @@ class Preprocess():
     def clip_intensity(self) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Clip Intensity')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print('Clip MR14 Intensity')
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         
         # Buffer for Maximum Value of MR
         mean = 0
@@ -465,9 +465,9 @@ class Preprocess():
         image = nib.Nifti1Image(image, np.eye(4))
         nib.save(image, os.path.join(MR, self.images[13]))
 
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print('Clip CT Intensity')
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
 
         # Progress Bar
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
@@ -494,9 +494,9 @@ class Preprocess():
     def correct_bias(self) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('N4 Bias Correction')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Progress Bar
@@ -525,9 +525,9 @@ class Preprocess():
     def extract_brain(self) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Extract Brain Region')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Progress Bar
@@ -557,9 +557,9 @@ class Preprocess():
     def fill_hole(self) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Fill Holes in Brain Mask')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Progress Bar
@@ -644,9 +644,9 @@ class Preprocess():
     def remove_uselessness(self) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Remove Useless Area')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Progress Bar
@@ -712,9 +712,9 @@ class Preprocess():
     def apply_normalization(self) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('MR Intensity Normalize')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Progress Bar
@@ -750,9 +750,9 @@ class Preprocess():
     def extract_skull(self) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Extract Skull Region')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Progress Bar
@@ -820,9 +820,9 @@ class Preprocess():
     def slice_random(self, threshold: float = 0.075) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Slice with Random Seed')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Combine File Name List
@@ -947,19 +947,19 @@ class Preprocess():
         print()
 
         # Check Training, Validation, Testing Set
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print('Train')
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print(*sorted([file[2:4] for file in self.images[:20]]))
         print()
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print('Val')
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print(*sorted([file[2:4] for file in self.images[20:24]]))
         print()
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print('Test')
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print(*sorted([file[2:4] for file in self.images[24:]]))
         print()
 
@@ -987,9 +987,9 @@ class Preprocess():
     def slice_ordered(self, threshold: float = 0.075) -> None:
 
         print()
-        print('=======================================================================================================')
+        print('=' * 110)
         print('Slice with Specific Order + Remove Redundant Area')
-        print('=======================================================================================================')
+        print('=' * 110)
         print()
 
         # Clear File Name List
@@ -1133,19 +1133,19 @@ class Preprocess():
         print()
 
         # Check Training, Validation, Testing Set
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print('Train')
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print(*sorted([file[2:4] for file in self.images[:20]]))
         print()
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print('Val')
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print(*sorted([file[2:4] for file in self.images[20:24]]))
         print()
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print('Test')
-        print('-------------------------------------------------------------------------------------------------------')
+        print('-' * 110)
         print(*sorted([file[2:4] for file in self.images[24:]]))
         print()
 
@@ -1159,159 +1159,7 @@ class Preprocess():
 
         return
 
-    """
-    ====================================================================================================================
-    Check Statistic
-    ====================================================================================================================
-    """
-    def compute_statistic(self) -> None:
-
-        print()
-        print('=======================================================================================================')
-        print('Check Statistic')
-        print('=======================================================================================================')
-        print()
-
-        # Output Format
-        title = "{:^20}|{:^20}|{:^20}|{:^20}|{:^20}"
-        space = "{:^20}|{:^20.2f}|{:^20.2f}|{:^20.2f}|{:^20.2f}"
-
-        # Title
-        print('-------------------------------------------------------------------------------------------------------')
-        print(title.format('File Name', 'Mean', 'STD', 'Min', 'Max'))
-        print('-------------------------------------------------------------------------------------------------------')
-
-        # Statistic Buffer
-        mr_mean = []
-        ct_mean = []
-        mr_std = []
-        ct_std = []
-
-        for i in range(self.len):
-
-            # Load Data
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
-            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
-
-            # Remove Air Region
-            image = image[hmask]
-            label = label[hmask]
-
-            # Save Mean and STD
-            mr_mean.append(image.mean())
-            ct_mean.append(label.mean())
-            mr_std.append(image.std())
-            ct_std.append(label.std())
-
-            # Check Statistics
-            print(space.format(self.images[i], image.mean(), image.std(), image.min(), image.max()))
-            print(space.format(self.labels[i], label.mean(), label.std(), label.min(), label.max()))
-            print()
-        
-        # Check Mean and STD Behavior
-        print('-------------------------------------------------------------------------------------------------------')
-        print(title.format('', 'Mean Mean', 'Mean STD', 'STD Mean', 'STD STD'))
-        print('-------------------------------------------------------------------------------------------------------')
-
-        # Python List to Numpy Array
-        mr_mean = np.array(mr_mean)
-        ct_mean = np.array(ct_mean)
-        mr_std = np.array(mr_std)
-        ct_std = np.array(ct_std)
-
-        # Check Mean and STD Behavior
-        print(space.format('MR Mean & STD', mr_mean.mean(), mr_mean.std(), mr_std.mean(), mr_std.std()))
-        print(space.format('CT Mean & STD', ct_mean.mean(), ct_mean.std(), ct_std.mean(), ct_std.std()))
-        print()
-
-        return
     
-    """
-    ====================================================================================================================
-    Check CT Behavior
-    ====================================================================================================================
-    """
-    def check_ct(self) -> None:
-
-        print()
-        print('=======================================================================================================')
-        print('Check CT Behavior')
-        print('=======================================================================================================')
-        print()
-
-        # Output Format
-        title = "{:^25}|{:^40}|{:^40}"
-        space = "{:^25}|{:^40.2f}|{:^40.2f}"
-
-        # Title
-        print('-------------------------------------------------------------------------------------------------------')
-        print(title.format('File Name', 'Mean Value of Non-Air Region', 'Soft Tissue Intensity'))
-        print('-------------------------------------------------------------------------------------------------------')
-
-        for i in range(self.len):
-
-            # Load Data
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
-            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
-
-            # Soft Tissue Intensity
-            tissue = label[label.shape[0] // 2, label.shape[1] // 2, label.shape[2] // 3 * 2]
-
-            # Remove Air Region
-            label = np.where(hmask, label, -250)
-            label = label.flatten()
-            label = label[label > -250]
-
-            # Check Statistics
-            print(space.format(self.labels[i], label.mean(), tissue))
-            print()
-        print()
-
-        return
-
-    """
-    ====================================================================================================================
-    Visulize Brain and Skull Extraction Result
-    ====================================================================================================================
-    """
-    def visualize_extraction(self) -> None:
-
-        print()
-        print('=======================================================================================================')
-        print('Visulize Brain and Skull Extraction Result')
-        print('=======================================================================================================')
-        print()
-
-        # Progress Bar
-        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
-        for i in progress:
-
-            # Load Data
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
-            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
-            skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
-
-            # Binary Thresholding
-            brain = np.where(brain > 0, 1, 0)
-            skull = np.where(skull > -1000, 1, 0)
-
-            # Overlap Original Data and Brain or Skull Region
-            image = image + np.abs(brain * image.mean() * 5)
-            label = label + np.abs(skull * label.mean() * 3)
-
-            # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(VS, self.images[i]))
-
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(VS, self.labels[i]))
-        print()
-
-        return
-    
-
 """
 ========================================================================================================================
 Main Function
