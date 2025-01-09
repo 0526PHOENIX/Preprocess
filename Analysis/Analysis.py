@@ -11,15 +11,7 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
 import os
 import sys
-if os.path.isdir("/home/ccy/Data"):
-    # Lab Server R740
-    sys.path.append("/home/ccy/Data")
-elif os.path.isdir("/home/phoenix/Data"):
-    # Lab Server Supermicro
-    sys.path.append("/home/phoenix/Data")
-else:
-    # Lab Local
-    sys.path.append("C:/Users/user/Desktop/Data")
+sys.path.append("C:/Users/user/Desktop/Data")
 
 from tqdm import tqdm
 
@@ -38,6 +30,7 @@ from Utils import *
 Global Constant
 ========================================================================================================================
 """
+# Data File Path
 MR_RAW = ""
 CT_RAW = ""
 
@@ -46,12 +39,10 @@ CT = "C:/Users/user/Desktop/Data/Data/CT"
 HM = "C:/Users/user/Desktop/Data/Data/HM"
 BR = "C:/Users/user/Desktop/Data/Data/BR"
 SK = "C:/Users/user/Desktop/Data/Data/SK"
-VS = "C:/Users/user/Desktop/Data/Data/VS"
-
-EQ = "C:/Users/user/Desktop/Data/Data/EQ"
 
 DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
 
+# Statistic Buffer
 STATIST = 4
 
 STATIST_MR_MEAN = 0
@@ -59,6 +50,7 @@ STATIST_CT_MEAN = 1
 STATIST_MR_STD  = 2
 STATIST_CT_STD  = 3
 
+# Metrics Buffer
 METRICS = 10
 
 METRICS_HEAD_MAE    = 0
@@ -66,13 +58,14 @@ METRICS_HEAD_RMSE   = 1
 METRICS_HEAD_PSNR   = 2
 METRICS_HEAD_SSIM   = 3
 METRICS_HEAD_LPIPS  = 4
-
 METRICS_BONE_MAE    = 5
 METRICS_BONE_RMSE   = 6
 METRICS_BONE_PSNR   = 7
 METRICS_BONE_SSIM   = 8
 METRICS_BONE_DICE   = 9
 
+# Checkerboard
+CK = "C:/Users/user/Desktop/Data/Analysis/Checkerboard"
 
 """
 ========================================================================================================================
@@ -100,7 +93,6 @@ class Analysis():
         self.hmasks = os.listdir(HM)
         self.brains = os.listdir(BR)
         self.skulls = os.listdir(SK)
-        self.equals = os.listdir(EQ)
 
         # Check File Number
         if len(self.images) != len(self.labels):
@@ -109,8 +101,12 @@ class Analysis():
         # Get File Number
         self.len = 26
 
-        # Loss
+        # Metrics
         self.get_metrics = Metrics(torch.device('cuda'))
+
+        # Check Path
+        if not os.path.exists(CK):
+            os.makedirs(CK)
 
         # Log
         print('Done !')
@@ -125,11 +121,13 @@ class Analysis():
     """
     def main(self) -> None:
 
-        # self.histogram(5000)
-
         # self.print_statist()
-        self.print_metrics()
+        # self.print_metrics()
         # self.print_stissue()
+
+        # self.histogram()
+
+        self.checkerboard()
 
         return
     
@@ -307,7 +305,6 @@ class Analysis():
         title = "{:^35}|{:^35}|{:^35}"
         space = "{:^35}|{:^35.3f}|{:^35.3f}"
 
-
         for i in range(self.len):
 
             # Load Data
@@ -468,6 +465,56 @@ class Analysis():
         self.images.sort()
         self.labels.sort()
         self.hmasks.sort()
+
+        return
+
+    """
+    ====================================================================================================================
+    Plot Checkerboard
+    ====================================================================================================================
+    """
+    def checkerboard(self, index: int = None, check: int = 8) -> None:
+
+        print()
+        print('=' * 110)
+        print('Plot Checkerboard')
+        print('=' * 110)
+        print()
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+
+            # Load Data and Backgrond
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+
+            # [-1, 1]
+            label -= -1000
+            label /= 4000
+            label = (label * 2) - 1
+
+            # Target Index and Buffer for Checkerboard
+            index = index or (image.shape[2] // 3 * 2)
+            board = np.zeros((image.shape[0], image.shape[1]), dtype = 'float32')
+
+            # Plot Checkerboard
+            for j in range(board.shape[0]):
+                for k in range(board.shape[1]):
+                    if (j // (image.shape[0] // check) % 2) ^ (k // (image.shape[1] // check) % 2):
+                        board[j, k] = image[j, k, index]
+                    else:
+                        board[j, k] = label[j, k, index]
+
+            # Rotate
+            board = np.rot90(board, k = 1)
+
+            # Save Checkerboard
+            plt.figure()
+            plt.imshow(board, cmap = 'gray')
+            plt.savefig(os.path.join(CK, self.images[i][2:4] + '.png'), format = 'png', dpi = 300)
+            plt.close()
+        print()
 
         return
 

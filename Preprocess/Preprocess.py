@@ -41,14 +41,12 @@ CT = "/home/phoenix/Data/Data/CT"
 HM = "/home/phoenix/Data/Data/HM"
 BR = "/home/phoenix/Data/Data/BR"
 SK = "/home/phoenix/Data/Data/SK"
-VS = "/home/phoenix/Data/Data/VS"
-
 EQ = "/home/phoenix/Data/Data/EQ"
 
 DATA_2D = "/home/phoenix/Data/Data_2D"
 
 
-PATH_LIST = [MR, CT, HM, BR, SK, VS, EQ, DATA_2D]
+PATH_LIST = [MR, CT, HM, BR, SK, EQ, DATA_2D]
 
 """
 ========================================================================================================================
