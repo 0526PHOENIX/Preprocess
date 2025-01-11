@@ -7,6 +7,7 @@
 /Test/Test
 
 /Analysis/Checkerboard
+/Analysis/Profile
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -18,6 +18,8 @@ from tqdm import tqdm
 import numpy as np
 import nibabel as nib
 
+from typing import Literal
+
 import matplotlib.pyplot as plt
 
 import torch
@@ -64,8 +66,11 @@ METRICS_BONE_PSNR   = 7
 METRICS_BONE_SSIM   = 8
 METRICS_BONE_DICE   = 9
 
-# Checkerboard
+# Plot
 CK = "C:/Users/user/Desktop/Data/Analysis/Checkerboard"
+PF = "C:/Users/user/Desktop/Data/Analysis/Profile"
+
+PATH = [CK, PF]
 
 """
 ========================================================================================================================
@@ -105,8 +110,9 @@ class Analysis():
         self.get_metrics = Metrics(torch.device('cuda'))
 
         # Check Path
-        if not os.path.exists(CK):
-            os.makedirs(CK)
+        for path in PATH:
+            if not os.path.exists(path):
+                os.makedirs(path)
 
         # Log
         print('Done !')
@@ -129,6 +135,8 @@ class Analysis():
 
         self.checkerboard()
 
+        self.profile(index = 100, mode = 'Horizontal')
+
         return
     
     """
@@ -145,8 +153,8 @@ class Analysis():
         print()
 
         # Output Format
-        title = "{:^20}|{:^20}|{:^20}|{:^20}|{:^20}"
-        space = "{:^20}|{:^20.3f}|{:^20.3f}|{:^20.3f}|{:^20.3f}"
+        title = "{:^17}|{:^17}|{:^17}|{:^17}|{:^17}|{:^20}"
+        space = "{:^17}|{:^17.3f}|{:^17.3f}|{:^17.3f}|{:^17.3f}|{:^20}"
 
         # Buffer for Statistic
         statist = np.zeros((STATIST, self.len))
@@ -158,18 +166,21 @@ class Analysis():
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
+            # Original Data Shape
+            shape = str(image.shape)
+
             # Remove Air Region
             image = image[hmask]
             label = label[hmask]
 
             # Title
             print('-' * 110)
-            print(title.format('File Name', 'Mean', 'STD', 'Min', 'Max'))
+            print(title.format('File Name', 'Mean', 'STD', 'Min', 'Max', 'Shape'))
             print('-' * 110)
 
             # Result
-            print(space.format(self.images[i], image.mean(), image.std(), image.min(), image.max()))
-            print(space.format(self.labels[i], label.mean(), label.std(), label.min(), label.max()))
+            print(space.format(self.images[i], image.mean(), image.std(), image.min(), image.max(), shape))
+            print(space.format(self.labels[i], label.mean(), label.std(), label.min(), label.max(), shape))
             print()
 
             # Save Statistic
@@ -191,12 +202,12 @@ class Analysis():
         
         # Title
         print('-' * 110)
-        print(title.format('', 'Mean Mean', 'Mean STD', 'STD Mean', 'STD STD'))
+        print(title.format('', 'Mean Mean', 'Mean STD', 'STD Mean', 'STD STD', '---'))
         print('-' * 110)
 
         # Result
-        print(space.format('MR Mean & STD', image_mean_mean, image_mean_std, image_std_mean, image_std_std))
-        print(space.format('CT Mean & STD', label_mean_mean, label_mean_std, label_std_mean, label_std_std))
+        print(space.format('MR Mean & STD', image_mean_mean, image_mean_std, image_std_mean, image_std_std, '---'))
+        print(space.format('CT Mean & STD', label_mean_mean, label_mean_std, label_std_mean, label_std_std, '---'))
         print()
 
         return
@@ -485,7 +496,7 @@ class Analysis():
         progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
         for i in progress:
 
-            # Load Data and Backgrond
+            # Load Data
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
 
@@ -509,15 +520,88 @@ class Analysis():
             # Rotate
             board = np.rot90(board, k = 1)
 
-            # Save Checkerboard
+            # Figure
             plt.figure()
+
+            # Plot Checkerboard
             plt.imshow(board, cmap = 'gray')
+            plt.axis('off')
+
+            # Save Checkerboard
+            plt.tight_layout()
             plt.savefig(os.path.join(CK, self.images[i][2:4] + '.png'), format = 'png', dpi = 300)
             plt.close()
         print()
 
         return
 
+    """
+    ====================================================================================================================
+    Plot Profile
+    ====================================================================================================================
+    """
+    def profile(self, index: int = None, mode: str | Literal['Horizontal', 'Vertical'] = 'Horizontal') -> None:
+
+        print()
+        print('=' * 110)
+        print('Plot Profile')
+        print('=' * 110)
+        print()
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+
+            # Load Data
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+
+            image = np.rot90(image, k = 1, axes = (0, 1))
+            label = np.rot90(label, k = 1, axes = (0, 1))
+
+            # [-1000, 3000]
+            image = ((image + 1) * 2000) - 1000
+
+            # Target Line Index
+            index = index or (image.shape[0] // 2)
+
+            # Figure
+            _, axs = plt.subplots(1, 2, figsize = (15, 7.5))
+
+            # Plot CT
+            axs[0].imshow(label[:, :, label.shape[2] // 3 * 2], cmap = 'gray')
+            axs[0].axis('off')
+
+            # Target Line
+            if mode == 'Horizontal':
+                # Plot Target Line
+                axs[0].axhline(index, color = 'cyan', linewidth = 2)
+                # Target Line Index
+                image = image[index, :, image.shape[2] // 3 * 2]
+                label = label[index, :, label.shape[2] // 3 * 2]
+            elif mode == 'Vertical':
+                # Plot Target Line
+                axs[0].axvline(index, color = 'cyan', linewidth = 2)
+                # Target Line Index
+                image = image[:, index, image.shape[2] // 3 * 2]
+                label = label[:, index, label.shape[2] // 3 * 2]
+            else:
+                raise TypeError('Invalid Mode')
+            
+            # Plot Target Line Profile
+            axs[1].plot(range(0, 256), image, label = 'MR', color = 'green')
+            axs[1].plot(range(0, 256), label, label = 'CT', color = 'red')
+            axs[1].set_xlim(0, 255)
+            axs[1].set_ylim(-1000, 3000)
+            axs[1].legend(loc = 'upper left', fontsize = 12)
+            
+            # Save Profile
+            plt.tight_layout()
+            plt.savefig(os.path.join(PF, self.images[i][2:4] + '.png'), format = 'png', dpi = 300)
+            plt.close()
+        print()
+
+        return
 
     
 """
