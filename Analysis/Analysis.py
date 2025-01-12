@@ -14,12 +14,10 @@ import sys
 sys.path.append("C:/Users/user/Desktop/Data")
 
 from tqdm import tqdm
+from typing import Literal
 
 import numpy as np
 import nibabel as nib
-
-from typing import Literal
-
 import matplotlib.pyplot as plt
 
 import torch
@@ -67,8 +65,10 @@ METRICS_BONE_SSIM   = 8
 METRICS_BONE_DICE   = 9
 
 # Plot
+HT = "C:/Users/user/Desktop/Data/Analysis/Histogram"
 CK = "C:/Users/user/Desktop/Data/Analysis/Checkerboard"
 PF = "C:/Users/user/Desktop/Data/Analysis/Profile"
+BP = "C:/Users/user/Desktop/Data/Analysis/Boxplot"
 
 PATH = [CK, PF]
 
@@ -131,24 +131,23 @@ class Analysis():
         # self.print_metrics()
         # self.print_stissue()
 
-        # self.histogram()
-
-        self.checkerboard()
-
-        self.profile(index = 100, mode = 'Horizontal')
+        self.histogram()
+        # self.checker()
+        # self.profile()
+        self.boxplot()
 
         return
     
     """
     ====================================================================================================================
-    Print MR vs CT Statistic
+    Print Statistic
     ====================================================================================================================
     """
     def print_statist(self) -> None:
 
         print()
         print('=' * 110)
-        print('Print MR vs CT Statistic')
+        print('Print Statistic')
         print('=' * 110)
         print()
 
@@ -214,14 +213,14 @@ class Analysis():
     
     """
     ====================================================================================================================
-    Print MR vs CT Metrics
+    Print Metrics
     ====================================================================================================================
     """
     def print_metrics(self) -> None:
 
         print()
         print('=' * 110)
-        print('Print MR vs CT Metrics')
+        print('Print Metrics')
         print('=' * 110)
         print()
 
@@ -231,7 +230,7 @@ class Analysis():
         # Buffer for Metrics
         metrics = torch.zeros(METRICS, self.len, device = torch.device('cuda'))
 
-        for i in range(4):
+        for i in range(self.len):
 
             # Load Data and Backgrond
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
@@ -249,16 +248,6 @@ class Analysis():
             # Bone MAE, PSNR, SSIM, DICE
             bone_mae, bone_rmse, bone_psnr, bone_ssim, bone_dice = self.get_metrics.eva_bone(image, skull, hmask, brain, 'region')
 
-            # Title
-            print('-' * 110)
-            print(space.format('File Region', 'MAE', 'RMSE', 'PSNR', 'SSIM', 'LPIPS', 'DICE'))
-            print('-' * 110)
-
-            # Result
-            print(space.format(str(i + 1) + ' Head', head_mae, head_rmse, head_psnr, head_ssim, head_lpips, '---'))
-            print(space.format(str(i + 1) + ' Bone', bone_mae, bone_rmse, bone_psnr, bone_ssim, '---', bone_dice))
-            print()
-
             # Save Metrics
             metrics[METRICS_HEAD_MAE, i]   = head_mae
             metrics[METRICS_HEAD_RMSE, i]  = head_rmse
@@ -270,6 +259,16 @@ class Analysis():
             metrics[METRICS_BONE_PSNR, i]  = bone_psnr
             metrics[METRICS_BONE_SSIM, i]  = bone_ssim
             metrics[METRICS_BONE_DICE, i]  = bone_dice
+
+            # Title
+            print('-' * 110)
+            print(space.format('File Region', 'MAE', 'RMSE', 'PSNR', 'SSIM', 'LPIPS', 'DICE'))
+            print('-' * 110)
+
+            # Result
+            print(space.format(str(i + 1) + ' Head', head_mae, head_rmse, head_psnr, head_ssim, head_lpips, '---'))
+            print(space.format(str(i + 1) + ' Bone', bone_mae, bone_rmse, bone_psnr, bone_ssim, '---', bone_dice))
+            print()
         print()
 
         # Torch Tensor to Numpy Array
@@ -484,7 +483,7 @@ class Analysis():
     Plot Checkerboard
     ====================================================================================================================
     """
-    def checkerboard(self, index: int = None, check: int = 8) -> None:
+    def checker(self, index: int = None, check: int = 8) -> None:
 
         print()
         print('=' * 110)
@@ -602,6 +601,144 @@ class Analysis():
         print()
 
         return
+    
+    """
+    ====================================================================================================================
+    Plot Boxplot
+    ====================================================================================================================
+    """
+    def boxplot(self) -> None:
+
+        print()
+        print('=' * 110)
+        print('Plot Boxplot')
+        print('=' * 110)
+        print()
+
+        # Buffer for Metrics
+        metrics_mrct = torch.zeros(METRICS, 4, device = torch.device('cuda'))
+        metrics_ctct = torch.zeros(METRICS, 4, device = torch.device('cuda'))
+
+        # Progress Bar
+        progress = tqdm(range(4), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+
+            # Load Data and Backgrond
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
+            skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
+            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('bool')
+
+            # [-1000, 3000]
+            image = ((image + 1) * 2000) - 1000
+
+            # Head MAE, PSNR, SSIM, LPIPS
+            head_mae, head_rmse, head_psnr, head_ssim, head_lpips = self.get_metrics.eva_head(image, label, hmask, 'region')
+
+            # Bone MAE, PSNR, SSIM, DICE
+            bone_mae, bone_rmse, bone_psnr, bone_ssim, bone_dice = self.get_metrics.eva_bone(image, skull, hmask, brain, 'region')
+
+            # Save Metrics
+            metrics_mrct[METRICS_HEAD_MAE, i]   = head_mae
+            metrics_mrct[METRICS_HEAD_RMSE, i]  = head_rmse
+            metrics_mrct[METRICS_HEAD_PSNR, i]  = head_psnr
+            metrics_mrct[METRICS_HEAD_SSIM, i]  = head_ssim
+            metrics_mrct[METRICS_HEAD_LPIPS, i] = head_lpips
+            metrics_mrct[METRICS_BONE_MAE, i]   = bone_mae
+            metrics_mrct[METRICS_BONE_RMSE, i]  = bone_rmse
+            metrics_mrct[METRICS_BONE_PSNR, i]  = bone_psnr
+            metrics_mrct[METRICS_BONE_SSIM, i]  = bone_ssim
+            metrics_mrct[METRICS_BONE_DICE, i]  = bone_dice
+
+            # Head MAE, PSNR, SSIM, LPIPS
+            head_mae, head_rmse, head_psnr, head_ssim, head_lpips = self.get_metrics.eva_head(label, label, hmask, 'region')
+
+            # Bone MAE, PSNR, SSIM, DICE
+            bone_mae, bone_rmse, bone_psnr, bone_ssim, bone_dice = self.get_metrics.eva_bone(label, skull, hmask, brain, 'region')
+
+            # Save Metrics
+            metrics_ctct[METRICS_HEAD_MAE, i]   = head_mae
+            metrics_ctct[METRICS_HEAD_RMSE, i]  = head_rmse
+            metrics_ctct[METRICS_HEAD_PSNR, i]  = head_psnr
+            metrics_ctct[METRICS_HEAD_SSIM, i]  = head_ssim
+            metrics_ctct[METRICS_HEAD_LPIPS, i] = head_lpips
+            metrics_ctct[METRICS_BONE_MAE, i]   = bone_mae
+            metrics_ctct[METRICS_BONE_RMSE, i]  = bone_rmse
+            metrics_ctct[METRICS_BONE_PSNR, i]  = bone_psnr
+            metrics_ctct[METRICS_BONE_SSIM, i]  = bone_ssim
+            metrics_ctct[METRICS_BONE_DICE, i]  = bone_dice
+        print()
+
+        # Torch Tensor to Numpy Array
+        metrics_mrct = metrics_mrct.to('cpu').detach().numpy()
+        metrics_ctct = metrics_ctct.to('cpu').detach().numpy()
+
+        # Create boxplot
+        fig, axs = plt.subplots(2, 3, figsize = (8, 6))
+
+        for i in range(5):
+
+            ax = axs[i // 3][i % 3]
+
+            categories = ['MR vs CT', 'CT vs CT']
+            data = [metrics_mrct[i], metrics_ctct[i]]
+
+            box = ax.boxplot(data, patch_artist = True, widths = 0.6, showfliers = False)
+
+            # Customize boxplot colors
+            colors = ['salmon', 'lightgreen']
+            for patch, color in zip(box['boxes'], colors):
+                patch.set_facecolor(color)
+                patch.set_alpha(0.2)
+
+            # Scatter points for each category
+            for i, values in enumerate(data):
+                x = np.random.normal(i + 1, 0.04, size = len(values))
+                ax.scatter(x, values, alpha = 0.7, color = colors[i])
+
+            # Customize plot
+            ax.set_xticks(range(1, len(categories) + 1))
+            ax.set_xticklabels(categories)
+            ax.set_ylabel('Numerical')
+            ax.set_xlabel('Categorical')
+            # ax.legend(loc = 'upper center')
+
+        plt.tight_layout()
+        plt.show()
+
+        # # Data generation
+        # np.random.seed(0)
+        # categories = ['Experiment 1', 'Experiment 2', 'Experiment 3', 'Experiment 4']
+        # data = [np.random.normal(80, 5, 30),
+        #         np.random.normal(75, 7, 30),
+        #         np.random.normal(85, 6, 30),
+        #         np.random.normal(70, 8, 30)]
+
+        # # Create boxplot
+        # fig, ax = plt.subplots(figsize=(8, 6))
+        # box = ax.boxplot(data, patch_artist = True, widths = 0.6, showfliers = False)
+
+        # # Customize boxplot colors
+        # colors = ['salmon', 'lightgreen', 'skyblue', 'orchid']
+        # for patch, color in zip(box['boxes'], colors):
+        #     patch.set_facecolor(color)
+        #     patch.set_alpha(0.2)
+
+        # # Scatter points for each category
+        # for i, values in enumerate(data):
+        #     x = np.random.normal(i + 1, 0.04, size = len(values))  # Jitter for scatter
+        #     ax.scatter(x, values, alpha = 0.7, color = colors[i])
+
+        # # Customize plot
+        # ax.set_xticks(range(1, len(categories) + 1))
+        # ax.set_xticklabels(categories)
+        # ax.set_ylabel('Numerical')
+        # ax.set_xlabel('Categorical')
+        # # ax.legend(loc = 'upper center')
+
+        # plt.tight_layout()
+        # plt.show()
 
     
 """

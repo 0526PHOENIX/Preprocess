@@ -23,11 +23,17 @@ CT = "C:/Users/user/Desktop/Data/Data/CT"
 HM = "C:/Users/user/Desktop/Data/Data/HM"
 BR = "C:/Users/user/Desktop/Data/Data/BR"
 SK = "C:/Users/user/Desktop/Data/Data/SK"
-
 EQ = "C:/Users/user/Desktop/Data/Data/EQ"
-PD = "C:/Users/user/Desktop/Data/Data/PD"
 
 DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
+
+MR_PD = "C:/Users/user/Desktop/Data/Data_Pad/MR"
+CT_PD = "C:/Users/user/Desktop/Data/Data_Pad/CT"
+HM_PD = "C:/Users/user/Desktop/Data/Data_Pad/HM"
+BR_PD = "C:/Users/user/Desktop/Data/Data_Pad/BR"
+SK_PD = "C:/Users/user/Desktop/Data/Data_Pad/SK"
+
+PATH_LIST = [MR_PD, CT_PD, HM_PD, BR_PD, SK_PD]
 
 
 """
@@ -50,22 +56,25 @@ class Test():
         print('=' * 110)
         print()
 
-        # Data_2D File Path
-        for dataset in ['Train', 'Val', 'Test']:
-            for data in ['MR', 'CT', 'HM', 'BR', 'SK', 'EQ']:
-                path = os.path.join(os.path.join(DATA_2D, dataset, data))
-                if not os.path.exists(path):
-                    os.makedirs(path)
+        # # Data_2D File Path
+        # for dataset in ['Train', 'Val', 'Test']:
+        #     for data in ['MR', 'CT', 'HM', 'BR', 'SK', 'EQ']:
+        #         path = os.path.join(os.path.join(DATA_2D, dataset, data))
+        #         if not os.path.exists(path):
+        #             os.makedirs(path)
 
-        if not os.path.exists(PD):
-            os.makedirs(PD)
+        # Check File Path
+        for path in PATH_LIST:
+            if not os.path.exists(path):
+                os.makedirs(path)
 
         # Get File Name
         self.images = os.listdir(MR)
         self.labels = os.listdir(CT)
         self.hmasks = os.listdir(HM)
+        self.brains = os.listdir(BR)
+        self.skulls = os.listdir(SK)
         self.equals = os.listdir(EQ)
-        self.padded = os.listdir(PD)
 
         # Check File Number
         if len(self.images) != len(self.labels):
@@ -89,9 +98,7 @@ class Test():
 
         # self.histogram_equalization()
 
-        # self.pad_mr_series()
-
-        self.concat_mr('Train')
+        self.pad_series()
 
         return
 
@@ -148,11 +155,11 @@ class Test():
     
     ====================================================================================================================
     """
-    def pad_mr_series(self) -> None:
+    def pad_series(self) -> None:
 
         print()
         print('=' * 110)
-        print('Padding MR')
+        print('Padding')
         print('=' * 110)
         print()
 
@@ -162,72 +169,40 @@ class Test():
 
             # Load Data
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('float32')
+            brain = nib.load(os.path.join(BR, self.brains[i])).get_fdata().astype('float32')
+            skull = nib.load(os.path.join(SK, self.skulls[i])).get_fdata().astype('float32')
 
             # Padding
             z_axis = max(200 - image.shape[2], 0)
             image = np.pad(image, ((0, 0), (0, 0), (z_axis // 2, z_axis - z_axis // 2)), mode = 'constant', constant_values = -1)
+            label = np.pad(label, ((0, 0), (0, 0), (z_axis // 2, z_axis - z_axis // 2)), mode = 'constant', constant_values = -1000)
+            hmask = np.pad(hmask, ((0, 0), (0, 0), (z_axis // 2, z_axis - z_axis // 2)), mode = 'constant', constant_values = 0)
+            brain = np.pad(brain, ((0, 0), (0, 0), (z_axis // 2, z_axis - z_axis // 2)), mode = 'constant', constant_values = 0)
+            skull = np.pad(skull, ((0, 0), (0, 0), (z_axis // 2, z_axis - z_axis // 2)), mode = 'constant', constant_values = -1000)
 
             # Transpose (Z, X, Y) + Rotate
             image = np.rot90(image.transpose(2, 0, 1), k = 1, axes = (1, 2))
+            label = np.rot90(label.transpose(2, 0, 1), k = 1, axes = (1, 2))
+            hmask = np.rot90(hmask.transpose(2, 0, 1), k = 1, axes = (1, 2))
+            brain = np.rot90(brain.transpose(2, 0, 1), k = 1, axes = (1, 2))
+            skull = np.rot90(skull.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
             # Save Data
             image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(PD, self.images[i]))
+            nib.save(image, os.path.join(MR_PD, self.images[i]))
+            label = nib.Nifti1Image(label, np.eye(4))
+            nib.save(label, os.path.join(CT_PD, self.labels[i]))
+            hmask = nib.Nifti1Image(hmask, np.eye(4))
+            nib.save(hmask, os.path.join(HM_PD, self.hmasks[i]))
+            brain = nib.Nifti1Image(brain, np.eye(4))
+            nib.save(brain, os.path.join(BR_PD, self.brains[i]))
+            skull = nib.Nifti1Image(skull, np.eye(4))
+            nib.save(skull, os.path.join(SK_PD, self.skulls[i]))
         print()
 
         return
-    
-    """
-    ====================================================================================================================
-    
-    ====================================================================================================================
-    """
-    def concat_mr(self, mode: str = 'Test') -> None:
-
-        print()
-        print('=' * 110)
-        print('Concat MR')
-        print('=' * 110)
-        print()
-
-        # Save Path
-        save_path = os.path.join(DATA_2D, mode, 'PD')
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-
-        # MR Slice Path
-        mrs_path = os.path.join(DATA_2D, mode, 'MR')
-
-        # MR Slice Filename
-        mrs = []
-        idx = []
-        for mrs_name in sorted(os.listdir(mrs_path)):
-            mrs.append(mrs_name)
-            idx.append(int(mrs_name[2 : 4]))
-
-        # Progress Bar
-        progress = tqdm(range(len(mrs)), bar_format = '{l_bar}{bar:40}{r_bar}')
-        for i in progress:
-
-            # Load Data
-            mr = nib.load(os.path.join(DATA_2D, mode, 'MR', mrs[i])).get_fdata().astype('float32')[3:4, :, :]
-
-            # Load Data
-            image = nib.load(os.path.join(PD, self.padded[idx[i] - 1])).get_fdata().astype('float32')
-
-            # Concat
-            image = np.concatenate((mr, image), axis = 0)
-
-            # Check Path
-            save_path
-
-            # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(save_path, mrs[i]))
-        print()
-
-        return
-
 
 
 """
