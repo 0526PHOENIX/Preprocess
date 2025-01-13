@@ -7,7 +7,8 @@
 /Temp
 /Test/Test
 
-/Analysis/Checkerboard
+/Analysis/Histogram
+/Analysis/Checker
 /Analysis/Profile
 
 # Byte-compiled / optimized / DLL files

@@ -66,11 +66,11 @@ METRICS_BONE_DICE   = 9
 
 # Plot
 HT = "C:/Users/user/Desktop/Data/Analysis/Histogram"
-CK = "C:/Users/user/Desktop/Data/Analysis/Checkerboard"
+CK = "C:/Users/user/Desktop/Data/Analysis/Checker"
 PF = "C:/Users/user/Desktop/Data/Analysis/Profile"
 BP = "C:/Users/user/Desktop/Data/Analysis/Boxplot"
 
-PATH = [CK, PF]
+PATH = [HT, CK, PF]
 
 """
 ========================================================================================================================
@@ -134,7 +134,7 @@ class Analysis():
         self.histogram()
         # self.checker()
         # self.profile()
-        self.boxplot()
+        # self.boxplot()
 
         return
     
@@ -381,7 +381,7 @@ class Analysis():
         label_min, label_max = -1000, 3000
 
         # Plot histograms
-        _, axs = plt.subplots(4, 2)
+        fig, axs = plt.subplots(4, 2, figsize = (15, 7.5))
 
         # Remove Redundancy
         for ax in axs.flat:
@@ -389,8 +389,8 @@ class Analysis():
             ax.set_ylim(0, 1 / bins * 4)
 
         # Plot histograms
-        _, axs_image = plt.subplots(4, 7)
-        _, axs_label = plt.subplots(4, 7)
+        fig_image, axs_image = plt.subplots(4, 7, figsize = (15, 7.5))
+        fig_label, axs_label = plt.subplots(4, 7, figsize = (15, 7.5))
 
         # Remove Redundancy
         for ax_image, ax_label in zip(axs_image.flat, axs_label.flat):
@@ -468,8 +468,18 @@ class Analysis():
             ax.bar(np.linspace(label_min, label_max, bins), hist_label[i], width = (label_max - label_min) / bins)
             ax.set_ylabel('CT' + ' ' + dataset[i])
 
-        # Show Figure
-        plt.show()
+        # Save Histogram
+        fig.tight_layout()
+        fig.savefig(os.path.join(HT, 'Overall.png'), format = 'png', dpi = 300)
+        plt.close(fig)
+
+        fig_image.tight_layout()
+        fig_image.savefig(os.path.join(HT, 'MR.png'), format = 'png', dpi = 300)
+        plt.close(fig_image)
+
+        fig_label.tight_layout()
+        fig_label.savefig(os.path.join(HT, 'CT.png'), format = 'png', dpi = 300)
+        plt.close(fig_label)
 
         # Ascending Sort File Name List
         self.images.sort()
