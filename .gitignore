@@ -10,6 +10,7 @@
 /Analysis/Histogram
 /Analysis/Checker
 /Analysis/Profile
+/Analysis/Boxplot
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

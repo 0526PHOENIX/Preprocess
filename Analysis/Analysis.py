@@ -70,7 +70,7 @@ CK = "C:/Users/user/Desktop/Data/Analysis/Checker"
 PF = "C:/Users/user/Desktop/Data/Analysis/Profile"
 BP = "C:/Users/user/Desktop/Data/Analysis/Boxplot"
 
-PATH = [HT, CK, PF]
+PATH = [HT, CK, PF, BP]
 
 """
 ========================================================================================================================
@@ -131,10 +131,10 @@ class Analysis():
         # self.print_metrics()
         # self.print_stissue()
 
-        self.histogram()
+        # self.histogram()
         # self.checker()
         # self.profile()
-        # self.boxplot()
+        self.boxplot()
 
         return
     
@@ -626,11 +626,11 @@ class Analysis():
         print()
 
         # Buffer for Metrics
-        metrics_mrct = torch.zeros(METRICS, 4, device = torch.device('cuda'))
-        metrics_ctct = torch.zeros(METRICS, 4, device = torch.device('cuda'))
+        metrics_mrct = torch.zeros(METRICS, self.len, device = torch.device('cuda'))
+        metrics_ctct = torch.zeros(METRICS, self.len, device = torch.device('cuda'))
 
         # Progress Bar
-        progress = tqdm(range(4), bar_format = '{l_bar}{bar:40}{r_bar}')
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
         for i in progress:
 
             # Load Data and Backgrond
@@ -685,70 +685,53 @@ class Analysis():
         metrics_ctct = metrics_ctct.to('cpu').detach().numpy()
 
         # Create boxplot
-        fig, axs = plt.subplots(2, 3, figsize = (8, 6))
+        fig_head, axs_head = plt.subplots(2, 3, figsize = (8, 6))
+        fig_bone, axs_bone = plt.subplots(2, 3, figsize = (8, 6))
 
+        categories = ['MR vs CT', 'CT vs CT']
+        dict_head = {0: 'MAE', 1: 'RMSE', 2: 'PSNR', 3: 'SSIM', 4: 'LPIPS'}
+        dict_bone = {0: 'MAE', 1: 'RMSE', 2: 'PSNR', 3: 'SSIM', 4: 'DICE'}
         for i in range(5):
 
-            ax = axs[i // 3][i % 3]
+            ax_head = axs_head[i // 3][i % 3]
+            ax_bone = axs_bone[i // 3][i % 3]
 
-            categories = ['MR vs CT', 'CT vs CT']
-            data = [metrics_mrct[i], metrics_ctct[i]]
+            data_head = [metrics_mrct[i], metrics_ctct[i]]
+            data_bone = [metrics_mrct[i + 5], metrics_ctct[i + 5]]
 
-            box = ax.boxplot(data, patch_artist = True, widths = 0.6, showfliers = False)
+            box_head = ax_head.boxplot(data_head, patch_artist = True, widths = 0.6, showfliers = False)
+            box_bone = ax_bone.boxplot(data_bone, patch_artist = True, widths = 0.6, showfliers = False)
 
             # Customize boxplot colors
             colors = ['salmon', 'lightgreen']
-            for patch, color in zip(box['boxes'], colors):
-                patch.set_facecolor(color)
-                patch.set_alpha(0.2)
+            for patch_head, patch_bone, color in zip(box_head['boxes'], box_bone['boxes'], colors):
+                patch_head.set_facecolor(color)
+                patch_bone.set_facecolor(color)
+                patch_head.set_alpha(0.2)
+                patch_bone.set_alpha(0.2)
 
             # Scatter points for each category
-            for i, values in enumerate(data):
-                x = np.random.normal(i + 1, 0.04, size = len(values))
-                ax.scatter(x, values, alpha = 0.7, color = colors[i])
+            for j, (values_head, values_bone) in enumerate(zip(data_head, data_bone)):
+                ax_head.scatter(np.random.normal(j + 1, 0.04, size = len(values_head)), values_head, alpha = 0.7, color = colors[j])
+                ax_bone.scatter(np.random.normal(j + 1, 0.04, size = len(values_bone)), values_bone, alpha = 0.7, color = colors[j])
 
             # Customize plot
-            ax.set_xticks(range(1, len(categories) + 1))
-            ax.set_xticklabels(categories)
-            ax.set_ylabel('Numerical')
-            ax.set_xlabel('Categorical')
-            # ax.legend(loc = 'upper center')
+            ax_head.set_xticks(range(1, len(categories) + 1))
+            ax_bone.set_xticks(range(1, len(categories) + 1))
+            ax_head.set_xticklabels(categories)
+            ax_bone.set_xticklabels(categories)
+            ax_head.set_xlabel(dict_head[i])
+            ax_bone.set_xlabel(dict_bone[i])
 
-        plt.tight_layout()
-        plt.show()
+        fig_head.tight_layout()
+        fig_head.savefig(os.path.join(BP, 'Head_Metrics.png'), format = 'png', dpi = 300)
+        plt.close(fig_head)
 
-        # # Data generation
-        # np.random.seed(0)
-        # categories = ['Experiment 1', 'Experiment 2', 'Experiment 3', 'Experiment 4']
-        # data = [np.random.normal(80, 5, 30),
-        #         np.random.normal(75, 7, 30),
-        #         np.random.normal(85, 6, 30),
-        #         np.random.normal(70, 8, 30)]
+        fig_bone.tight_layout()
+        fig_bone.savefig(os.path.join(BP, 'Bone_Metrics.png'), format = 'png', dpi = 300)
+        plt.close(fig_bone)
 
-        # # Create boxplot
-        # fig, ax = plt.subplots(figsize=(8, 6))
-        # box = ax.boxplot(data, patch_artist = True, widths = 0.6, showfliers = False)
-
-        # # Customize boxplot colors
-        # colors = ['salmon', 'lightgreen', 'skyblue', 'orchid']
-        # for patch, color in zip(box['boxes'], colors):
-        #     patch.set_facecolor(color)
-        #     patch.set_alpha(0.2)
-
-        # # Scatter points for each category
-        # for i, values in enumerate(data):
-        #     x = np.random.normal(i + 1, 0.04, size = len(values))  # Jitter for scatter
-        #     ax.scatter(x, values, alpha = 0.7, color = colors[i])
-
-        # # Customize plot
-        # ax.set_xticks(range(1, len(categories) + 1))
-        # ax.set_xticklabels(categories)
-        # ax.set_ylabel('Numerical')
-        # ax.set_xlabel('Categorical')
-        # # ax.legend(loc = 'upper center')
-
-        # plt.tight_layout()
-        # plt.show()
+        return
 
     
 """
