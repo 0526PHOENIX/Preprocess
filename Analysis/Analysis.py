@@ -31,9 +31,6 @@ Global Constant
 ========================================================================================================================
 """
 # Data File Path
-MR_RAW = ""
-CT_RAW = ""
-
 MR = "C:/Users/user/Desktop/Data/Data/MR"
 CT = "C:/Users/user/Desktop/Data/Data/CT"
 HM = "C:/Users/user/Desktop/Data/Data/HM"
@@ -93,11 +90,11 @@ class Analysis():
         print()
 
         # Get File Name
-        self.images = os.listdir(MR)
-        self.labels = os.listdir(CT)
-        self.hmasks = os.listdir(HM)
-        self.brains = os.listdir(BR)
-        self.skulls = os.listdir(SK)
+        self.images = sorted(os.listdir(MR))
+        self.labels = sorted(os.listdir(CT))
+        self.hmasks = sorted(os.listdir(HM))
+        self.brains = sorted(os.listdir(BR))
+        self.skulls = sorted(os.listdir(SK))
 
         # Check File Number
         if len(self.images) != len(self.labels):
@@ -128,13 +125,13 @@ class Analysis():
     def main(self) -> None:
 
         # self.print_statist()
-        # self.print_metrics()
+        self.print_metrics()
         # self.print_stissue()
 
         # self.histogram()
         # self.checker()
         # self.profile()
-        self.boxplot()
+        # self.boxplot()
 
         return
     
@@ -565,6 +562,7 @@ class Analysis():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
 
+            # Rotate
             image = np.rot90(image, k = 1, axes = (0, 1))
             label = np.rot90(label, k = 1, axes = (0, 1))
 
@@ -688,21 +686,25 @@ class Analysis():
         fig_head, axs_head = plt.subplots(2, 3, figsize = (8, 6))
         fig_bone, axs_bone = plt.subplots(2, 3, figsize = (8, 6))
 
+        # Format Buffer
         categories = ['MR vs CT', 'CT vs CT']
-        dict_head = {0: 'MAE', 1: 'RMSE', 2: 'PSNR', 3: 'SSIM', 4: 'LPIPS'}
-        dict_bone = {0: 'MAE', 1: 'RMSE', 2: 'PSNR', 3: 'SSIM', 4: 'DICE'}
+        list_head = ['MAE', 'RMSE', 'PSNR', 'SSIM', 'LPIPS']
+        list_bone = ['MAE', 'RMSE', 'PSNR', 'SSIM', 'DICE']
         for i in range(5):
-
+            
+            # Get Subplot Index
             ax_head = axs_head[i // 3][i % 3]
             ax_bone = axs_bone[i // 3][i % 3]
 
+            # Extract Data from Numpy Array
             data_head = [metrics_mrct[i], metrics_ctct[i]]
             data_bone = [metrics_mrct[i + 5], metrics_ctct[i + 5]]
 
+            # Boxplot
             box_head = ax_head.boxplot(data_head, patch_artist = True, widths = 0.6, showfliers = False)
             box_bone = ax_bone.boxplot(data_bone, patch_artist = True, widths = 0.6, showfliers = False)
 
-            # Customize boxplot colors
+            # Set Boxplot Color
             colors = ['salmon', 'lightgreen']
             for patch_head, patch_bone, color in zip(box_head['boxes'], box_bone['boxes'], colors):
                 patch_head.set_facecolor(color)
@@ -710,23 +712,25 @@ class Analysis():
                 patch_head.set_alpha(0.2)
                 patch_bone.set_alpha(0.2)
 
-            # Scatter points for each category
+            # Scatter Point
             for j, (values_head, values_bone) in enumerate(zip(data_head, data_bone)):
                 ax_head.scatter(np.random.normal(j + 1, 0.04, size = len(values_head)), values_head, alpha = 0.7, color = colors[j])
                 ax_bone.scatter(np.random.normal(j + 1, 0.04, size = len(values_bone)), values_bone, alpha = 0.7, color = colors[j])
 
-            # Customize plot
+            # Plot Format
             ax_head.set_xticks(range(1, len(categories) + 1))
             ax_bone.set_xticks(range(1, len(categories) + 1))
             ax_head.set_xticklabels(categories)
             ax_bone.set_xticklabels(categories)
-            ax_head.set_xlabel(dict_head[i])
-            ax_bone.set_xlabel(dict_bone[i])
-
+            ax_head.set_xlabel(list_head[i])
+            ax_bone.set_xlabel(list_bone[i])
+        
+        # Save Head Boxplot
         fig_head.tight_layout()
         fig_head.savefig(os.path.join(BP, 'Head_Metrics.png'), format = 'png', dpi = 300)
         plt.close(fig_head)
 
+        # Save Bone Boxplot
         fig_bone.tight_layout()
         fig_bone.savefig(os.path.join(BP, 'Bone_Metrics.png'), format = 'png', dpi = 300)
         plt.close(fig_bone)

@@ -81,17 +81,17 @@ class Preprocess():
                     os.makedirs(path)
 
         # Get File Name
-        self.images = os.listdir(MR)
-        self.labels = os.listdir(CT)
+        self.images = sorted(os.listdir(MR))
+        self.labels = sorted(os.listdir(CT))
 
         if os.listdir(HM):
-            self.hmasks = os.listdir(HM)
+            self.hmasks = sorted(os.listdir(HM))
         if os.listdir(BR):
-            self.brains = os.listdir(BR)
+            self.brains = sorted(os.listdir(BR))
         if os.listdir(SK):
-            self.skulls = os.listdir(SK)
+            self.skulls = sorted(os.listdir(SK))
         if os.listdir(EQ):
-            self.equals = os.listdir(EQ)
+            self.equals = sorted(os.listdir(EQ))
 
         # Check File Number
         if len(self.images) != len(self.labels):
