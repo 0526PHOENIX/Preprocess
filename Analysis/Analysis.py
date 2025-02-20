@@ -16,6 +16,7 @@ sys.path.append("C:/Users/user/Desktop/Data")
 from tqdm import tqdm
 from typing import Literal
 
+from scipy import io
 import numpy as np
 import nibabel as nib
 import matplotlib.pyplot as plt
@@ -31,6 +32,9 @@ Global Constant
 ========================================================================================================================
 """
 # Data File Path
+MR_RAW = "C:/Users/user/Desktop/Data/Data_Raw/MR"
+CT_RAW = "C:/Users/user/Desktop/Data/Data_Raw/CT"
+
 MR = "C:/Users/user/Desktop/Data/Data/MR"
 CT = "C:/Users/user/Desktop/Data/Data/CT"
 HM = "C:/Users/user/Desktop/Data/Data/HM"
@@ -124,8 +128,9 @@ class Analysis():
     """
     def main(self) -> None:
 
+        self.print_rawdata()
         # self.print_statist()
-        self.print_metrics()
+        # self.print_metrics()
         # self.print_stissue()
 
         # self.histogram()
@@ -134,7 +139,54 @@ class Analysis():
         # self.boxplot()
 
         return
-    
+
+    """
+    ====================================================================================================================
+    Print Raw Data Statistic
+    ====================================================================================================================
+    """
+    def print_rawdata(self) -> None:
+
+        print()
+        print('=' * 110)
+        print('Print Raw Data Statistic')
+        print('=' * 110)
+        print()
+
+        # Raw File Name
+        self.images = os.listdir(MR_RAW)
+        self.labels = os.listdir(CT_RAW)
+
+        # Output Format
+        title = "{:^17}|{:^17}|{:^17}|{:^17}|{:^17}|{:^20}"
+        space = "{:^17}|{:^17.3f}|{:^17.3f}|{:^17.3f}|{:^17.3f}|{:^20}"
+
+        for i in range(self.len):
+
+            # Load Data
+            image = io.loadmat(os.path.join(MR_RAW, self.images[i]))['MR'].astype('float32')
+            label = io.loadmat(os.path.join(CT_RAW, self.labels[i]))['CT'].astype('float32')
+
+            # Data Shape
+            shape = str(image.shape)
+
+            # Title
+            print('-' * 110)
+            print(title.format('File Name', 'Mean', 'STD', 'Min', 'Max', 'Shape'))
+            print('-' * 110)
+
+            # Result
+            print(space.format(self.images[i], image.mean(), image.std(), image.min(), image.max(), shape))
+            print(space.format(self.labels[i], label.mean(), label.std(), label.min(), label.max(), shape))
+            print()
+        print()
+
+        # New File Name
+        self.images = os.listdir(MR)
+        self.labels = os.listdir(CT)
+
+        return
+
     """
     ====================================================================================================================
     Print Statistic
@@ -369,7 +421,7 @@ class Analysis():
                     self.labels.append('CT' + str(num) + '.nii')
                     self.hmasks.append('HM' + str(num) + '.nii')
 
-        # Initialize cumulative histogram bins
+        # Cumulative Histogram Bin
         hist_image = np.array([np.zeros(bins) for _ in range(4)])
         hist_label = np.array([np.zeros(bins) for _ in range(4)])
 

@@ -36,14 +36,14 @@ Global Constant
 MR_RAW = ""
 CT_RAW = ""
 
-MR = "/home/phoenix/Data/Data/MR"
-CT = "/home/phoenix/Data/Data/CT"
-HM = "/home/phoenix/Data/Data/HM"
-BR = "/home/phoenix/Data/Data/BR"
-SK = "/home/phoenix/Data/Data/SK"
-EQ = "/home/phoenix/Data/Data/EQ"
+MR = ""
+CT = ""
+HM = ""
+BR = ""
+SK = ""
+EQ = ""
 
-DATA_2D = "/home/phoenix/Data/Data_2D"
+DATA_2D = ""
 
 
 PATH_LIST = [MR, CT, HM, BR, SK, EQ, DATA_2D]
@@ -216,11 +216,11 @@ class Preprocess():
     Apply Transformation
     ====================================================================================================================
     """
-    def apply_transformation(self, mode: str | Literal['interpolate', 'padding'] = 'interpolate') -> None:
+    def apply_transformation(self) -> None:
 
         print()
         print('=' * 110)
-        print('Rotate + Shift Intensity + Interpolate or Padding')
+        print('Rotate + Shift Intensity + Padding')
         print('=' * 110)
         print()
 
@@ -242,43 +242,23 @@ class Preprocess():
                 # Shift -1000
                 label -= 1000
 
-            if mode == 'interpolate':
+            # Number of Padding Pixel
+            x_axis, y_axis = max(256 - image.shape[0], 0), max(256 - image.shape[1], 0)
 
-                # Numpy Array to Troch Tensor
-                image = torch.from_numpy(image.copy())
-                label = torch.from_numpy(label.copy())
+            # Padding
+            image = np.pad(image,
+                           ((x_axis // 2, x_axis - x_axis // 2), (y_axis // 2, y_axis - y_axis // 2), (0, 0)),
+                           mode = 'constant',
+                           constant_values = 0)
 
-                # Get Z-Axis Size
-                size_z = round(image.shape[2] * (256 / image.shape[0]))
+            label = np.pad(label,
+                           ((x_axis // 2, x_axis - x_axis // 2), (y_axis // 2, y_axis - y_axis // 2), (0, 0)),
+                           mode = 'constant',
+                           constant_values = -1000)
 
-                # Trilinear Interpolation: (256, 256, Original Z * Scale Factor)
-                image = F.interpolate(image[None, None, ...], size = (256, 256, size_z), mode = 'trilinear')[0, 0, ...]
-                label = F.interpolate(label[None, None, ...], size = (256, 256, size_z), mode = 'trilinear')[0, 0, ...]
-
-                # Troch Tensor to Numpy Array
-                image = image.numpy()
-                label = label.numpy()
-
-            else:
-
-                # Calculate Number of Padding Pixel
-                x_axis = max(256 - image.shape[0], 0)
-                y_axis = max(256 - image.shape[1], 0)
-
-                # Apply Padding
-                image = np.pad(image,
-                            ((x_axis // 2, x_axis - x_axis // 2), (y_axis // 2, y_axis - y_axis // 2), (0, 0)),
-                            mode = 'constant',
-                            constant_values = 0)
-
-                label = np.pad(label,
-                            ((x_axis // 2, x_axis - x_axis // 2), (y_axis // 2, y_axis - y_axis // 2), (0, 0)),
-                            mode = 'constant',
-                            constant_values = -1000)
-
-                # Crop
-                image = image[: 256, : 256, :]
-                label = label[: 256, : 256, :]
+            # Crop
+            image = image[: 256, : 256, :]
+            label = label[: 256, : 256, :]
 
             # Save Data
             image = nib.Nifti1Image(image, np.eye(4))
