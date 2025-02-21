@@ -33,17 +33,17 @@ import torch.nn.functional as F
 Global Constant
 ========================================================================================================================
 """
-MR_RAW = ""
-CT_RAW = ""
+MR_RAW = "C:/Users/user/Desktop/Data/Data_Raw/MR"
+CT_RAW = "C:/Users/user/Desktop/Data/Data_Raw/CT"
 
-MR = ""
-CT = ""
-HM = ""
-BR = ""
-SK = ""
-EQ = ""
+MR = "C:/Users/user/Desktop/Data/Data/MR"
+CT = "C:/Users/user/Desktop/Data/Data/CT"
+HM = "C:/Users/user/Desktop/Data/Data/HM"
+BR = "C:/Users/user/Desktop/Data/Data/BR"
+SK = "C:/Users/user/Desktop/Data/Data/SK"
+EQ = "C:/Users/user/Desktop/Data/Data/EQ"
 
-DATA_2D = ""
+DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
 
 
 PATH_LIST = [MR, CT, HM, BR, SK, EQ, DATA_2D]
@@ -125,7 +125,7 @@ class Preprocess():
         # # Convert File Format
         # self.convert_format()
         # # Apply Transformation
-        # self.apply_transformation(mode = 'interpolate')
+        # self.apply_transformation()
         # # Remove Background
         # self.remove_background(otsu = False)
         # # Clip Intensity
@@ -144,7 +144,7 @@ class Preprocess():
         # self.fill_hole()
         # # Remove Useless Area
         # self.remove_uselessness()
-        # # MR Intensity Normalize
+        # # MR Intensity Normalize + Histogram Normalization
         # self.apply_normalization()
         # # Extract Slull Region
         # self.extract_skull()
@@ -158,18 +158,6 @@ class Preprocess():
         # self.slice_random(threshold = 0.075)
         # Slice with Specific Order
         self.slice_ordered(threshold = 0.075)
-
-        """
-        ================================================================================================================
-        Check Data Behavior
-        ================================================================================================================
-        """
-        # # Check Statistic
-        # self.compute_statistic()
-        # # Check CT Behavior
-        # self.check_ct()
-        # # Visulize Brain and Skull Extraction Result
-        # self.visualize_extraction()
 
         return
     
@@ -243,7 +231,8 @@ class Preprocess():
                 label -= 1000
 
             # Number of Padding Pixel
-            x_axis, y_axis = max(256 - image.shape[0], 0), max(256 - image.shape[1], 0)
+            x_axis = max(256 - image.shape[0], 0)
+            y_axis = max(256 - image.shape[1], 0)
 
             # Padding
             image = np.pad(image,
@@ -684,14 +673,14 @@ class Preprocess():
 
     """
     ====================================================================================================================
-    MR Intensity Normalize
+    MR Intensity Normalize + Histogram Normalization
     ====================================================================================================================
     """
     def apply_normalization(self) -> None:
 
         print()
         print('=' * 110)
-        print('MR Intensity Normalize')
+        print('MR Intensity Normalize + Histogram Normalization')
         print('=' * 110)
         print()
 
@@ -701,6 +690,7 @@ class Preprocess():
 
             # Load Data
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
             # Z-Score
             image -= image.mean()
@@ -713,9 +703,31 @@ class Preprocess():
             # [-1, 1]
             image = (image * 2) - 1
 
+            # Remove Background + Flatten Image
+            flat = image[hmask]
+            
+            # Histogram
+            hist, edge = np.histogram(flat, bins = 5000)
+
+            # Cumulative Distribution Function
+            cdf = np.cumsum(hist)
+
+            # [-1, 1]
+            cdf = cdf / cdf[-1]
+            cdf = cdf * 2 - 1
+            
+            # Map Intensity
+            flat = np.interp(flat, edge[:-1], cdf)
+
+            # Reconstruct
+            equal = image.copy()
+            equal[hmask] = flat
+            
             # Save Data
             image = nib.Nifti1Image(image, np.eye(4))
             nib.save(image, os.path.join(MR, self.images[i]))
+            equal = nib.Nifti1Image(equal, np.eye(4))
+            nib.save(equal, os.path.join(EQ, 'EQ' + self.images[i][2:]))
         print()
         
         return
@@ -818,7 +830,7 @@ class Preprocess():
 
             if i < 20:
                 dataset = 'Train'
-            elif i < 24:
+            elif i < 22:
                 dataset = 'Val'
             elif i < 26:
                 dataset = 'Test'
@@ -1004,7 +1016,7 @@ class Preprocess():
 
             if i < 20:
                 dataset = 'Train'
-            elif i < 24:
+            elif i < 22:
                 dataset = 'Val'
             elif i < 26:
                 dataset = 'Test'
@@ -1119,12 +1131,12 @@ class Preprocess():
         print('-' * 110)
         print('Val')
         print('-' * 110)
-        print(*sorted([file[2:4] for file in self.images[20:24]]))
+        print(*sorted([file[2:4] for file in self.images[20:22]]))
         print()
         print('-' * 110)
         print('Test')
         print('-' * 110)
-        print(*sorted([file[2:4] for file in self.images[24:]]))
+        print(*sorted([file[2:4] for file in self.images[22:]]))
         print()
 
         # Ascending Sort File Name List

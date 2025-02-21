@@ -128,8 +128,8 @@ class Analysis():
     """
     def main(self) -> None:
 
-        self.print_rawdata()
-        # self.print_statist()
+        # self.print_rawdata()
+        self.print_statist()
         # self.print_metrics()
         # self.print_stissue()
 
