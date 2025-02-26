@@ -6,12 +6,13 @@ Package
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+import sys
+sys.path.append("C:/Users/user/Desktop/Data")
+
 import logging
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
-import os
-import sys
-sys.path.append("C:/Users/user/Desktop/Data")
+import datetime
 
 from tqdm import tqdm
 from typing import Literal
@@ -115,8 +116,8 @@ class Analysis():
             if not os.path.exists(path):
                 os.makedirs(path)
 
-        # Log
-        print('Done !')
+        # Log Timestamp
+        print('Timestamp: ' + datetime.datetime.now().strftime('%Y-%m-%d_%H-%M'))
         print()
 
         return
@@ -128,12 +129,12 @@ class Analysis():
     """
     def main(self) -> None:
 
-        # self.print_rawdata()
+        self.print_rawdata()
         self.print_statist()
         # self.print_metrics()
         # self.print_stissue()
 
-        # self.histogram()
+        self.histogram()
         # self.checker()
         # self.profile()
         # self.boxplot()
@@ -158,8 +159,8 @@ class Analysis():
         self.labels = os.listdir(CT_RAW)
 
         # Output Format
-        title = "{:^17}|{:^17}|{:^17}|{:^17}|{:^17}|{:^20}"
-        space = "{:^17}|{:^17.3f}|{:^17.3f}|{:^17.3f}|{:^17.3f}|{:^20}"
+        title = "{:^10}|{:^13}|{:^13}|{:^13}|{:^13}|{:^13}|{:^13}|{:^15}"
+        space = "{:^10}|{:^13.2f}|{:^13.2f}|{:^13.2f}|{:^13.2f}|{:^13.2f}|{:^13.2f}|{:^15}"
 
         for i in range(self.len):
 
@@ -168,16 +169,22 @@ class Analysis():
             label = io.loadmat(os.path.join(CT_RAW, self.labels[i]))['CT'].astype('float32')
 
             # Data Shape
-            shape = str(image.shape)
+            shape = str(image.shape).replace(' ', '')
+
+            # 50% & 99.5%
+            image_50_0 = np.percentile(image, 50.0)
+            label_50_0 = np.percentile(label, 50.0)
+            image_99_5 = np.percentile(image, 99.5)
+            label_99_5 = np.percentile(label, 99.5)
 
             # Title
             print('-' * 110)
-            print(title.format('File Name', 'Mean', 'STD', 'Min', 'Max', 'Shape'))
+            print(title.format('File Name', 'Mean', 'STD', 'Min', '50.0%', '99.5%', 'Max', 'Shape'))
             print('-' * 110)
 
             # Result
-            print(space.format(self.images[i], image.mean(), image.std(), image.min(), image.max(), shape))
-            print(space.format(self.labels[i], label.mean(), label.std(), label.min(), label.max(), shape))
+            print(space.format(self.images[i][:-4], image.mean(), image.std(), image.min(), image_50_0, image_99_5, image.max(), shape))
+            print(space.format(self.labels[i][:-4], label.mean(), label.std(), label.min(), label_50_0, label_99_5, label.max(), shape))
             print()
         print()
 
@@ -201,8 +208,8 @@ class Analysis():
         print()
 
         # Output Format
-        title = "{:^17}|{:^17}|{:^17}|{:^17}|{:^17}|{:^20}"
-        space = "{:^17}|{:^17.3f}|{:^17.3f}|{:^17.3f}|{:^17.3f}|{:^20}"
+        title = "{:^10}|{:^13}|{:^13}|{:^13}|{:^13}|{:^13}|{:^13}|{:^15}"
+        space = "{:^10}|{:^13.2f}|{:^13.2f}|{:^13.2f}|{:^13.2f}|{:^13.2f}|{:^13.2f}|{:^15}"
 
         # Buffer for Statistic
         statist = np.zeros((STATIST, self.len))
@@ -214,21 +221,27 @@ class Analysis():
             label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
-            # Original Data Shape
-            shape = str(image.shape)
+            # Data Shape
+            shape = str(image.shape).replace(' ', '')
 
             # Remove Air Region
             image = image[hmask]
             label = label[hmask]
 
+            # 50% & 99.5%
+            image_50_0 = np.percentile(image, 50.0)
+            label_50_0 = np.percentile(label, 50.0)
+            image_99_5 = np.percentile(image, 99.5)
+            label_99_5 = np.percentile(label, 99.5)
+
             # Title
             print('-' * 110)
-            print(title.format('File Name', 'Mean', 'STD', 'Min', 'Max', 'Shape'))
+            print(title.format('File Name', 'Mean', 'STD', 'Min', '50.0%', '99.5%', 'Max', 'Shape'))
             print('-' * 110)
 
             # Result
-            print(space.format(self.images[i], image.mean(), image.std(), image.min(), image.max(), shape))
-            print(space.format(self.labels[i], label.mean(), label.std(), label.min(), label.max(), shape))
+            print(space.format(self.images[i][:-4], image.mean(), image.std(), image.min(), image_50_0, image_99_5, image.max(), shape))
+            print(space.format(self.labels[i][:-4], label.mean(), label.std(), label.min(), label_50_0, label_99_5, label.max(), shape))
             print()
 
             # Save Statistic
@@ -247,15 +260,19 @@ class Analysis():
         label_std_mean   = round(statist[STATIST_CT_STD].mean().item(), 3)
         image_std_std    = round(statist[STATIST_MR_STD].std().item(), 3)
         label_std_std    = round(statist[STATIST_CT_STD].std().item(), 3) 
-        
+
+        # Output Format
+        title = "{:^25}|{:^20}|{:^20}|{:^20}|{:^20}"
+        space = "{:^25}|{:^20.3f}|{:^20.3f}|{:^20.3f}|{:^20.3f}"
+
         # Title
         print('-' * 110)
-        print(title.format('', 'Mean Mean', 'Mean STD', 'STD Mean', 'STD STD', '---'))
+        print(title.format('', 'Mean Mean', 'Mean STD', 'STD Mean', 'STD STD'))
         print('-' * 110)
 
         # Result
-        print(space.format('MR Mean & STD', image_mean_mean, image_mean_std, image_std_mean, image_std_std, '---'))
-        print(space.format('CT Mean & STD', label_mean_mean, label_mean_std, label_std_mean, label_std_std, '---'))
+        print(space.format('MR Mean & STD', image_mean_mean, image_mean_std, image_std_mean, image_std_std))
+        print(space.format('CT Mean & STD', label_mean_mean, label_mean_std, label_std_mean, label_std_std))
         print()
 
         return

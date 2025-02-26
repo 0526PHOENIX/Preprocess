@@ -9,9 +9,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import logging
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
+import datetime
 import random
 
-from typing import Literal
 from tqdm import tqdm
 
 import numpy as np
@@ -23,9 +23,6 @@ from scipy import ndimage
 
 import ants
 from antspynet.utilities import brain_extraction
-
-import torch
-import torch.nn.functional as F
 
 
 """
@@ -104,8 +101,8 @@ class Preprocess():
         self.direction = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
         self.highvalue = [2, 5, 6, 7, 8, 9, 10]
 
-        # Log
-        print('Done !')
+        # Log Timestamp
+        print('Timestamp: ' + datetime.datetime.now().strftime('%Y-%m-%d_%H-%M'))
         print()
 
         return
@@ -128,26 +125,38 @@ class Preprocess():
         # self.apply_transformation()
         # # Remove Background
         # self.remove_background(otsu = False)
-        # # Clip Intensity
-        # self.clip_intensity()
+
+        """
+        ================================================================================================================
+        Intensity Manipulation
+        ================================================================================================================
+        """
+        # # MR N4 Bias Correction
+        # self.correct_bias()
+        # Clip Intensity
+        self.clip_intensity()
 
         """
         ================================================================================================================
         Medical Image Process
         ================================================================================================================
         """
-        # # MR N4 Bias Correction
-        # self.correct_bias()
-        # # Extract Brain Region
-        # self.extract_brain()
-        # # Fill Holes in Brain Mask
-        # self.fill_hole()
-        # # Remove Useless Area
-        # self.remove_uselessness()
-        # # MR Intensity Normalize + Histogram Normalization
-        # self.apply_normalization()
-        # # Extract Slull Region
-        # self.extract_skull()
+        # Extract Brain Region
+        self.extract_brain()
+        # Fill Holes in Brain Mask
+        self.fill_hole()
+        # Remove Useless Area
+        self.remove_uselessness()
+        # Extract Slull Region
+        self.extract_skull()
+
+        """
+        ================================================================================================================
+        Normalization
+        ================================================================================================================
+        """
+        # MR Intensity Normalize + Histogram Normalization
+        self.apply_normalization()
 
         """
         ================================================================================================================
@@ -156,8 +165,8 @@ class Preprocess():
         """
         # # Slice with Random Order
         # self.slice_random(threshold = 0.075)
-        # Slice with Specific Order
-        self.slice_ordered(threshold = 0.075)
+        # # Slice with Specific Order
+        # self.slice_ordered(threshold = 0.075)
 
         return
     
@@ -282,15 +291,11 @@ class Preprocess():
             # Remove Rough Background
             label = np.where(label > -250, label, -1000)
 
-            # Flatten CT Data
-            flat = label.flatten()
-
             # Sort in Ascending Order
-            sorted = np.sort(flat)
+            sorted = np.sort(label.flatten())
 
             # Cumulative Distribution
-            dis = np.cumsum(sorted)
-            dis = dis / dis[-1]
+            cdf = np.cumsum(sorted) / np.sum(sorted)
 
             # Use Otsu's Algorithm
             if otsu:
@@ -301,7 +306,7 @@ class Preprocess():
                 for j in threshold_range:
 
                     # Get Threshold
-                    index = np.where(dis <= j / 800)[0][-1]
+                    index = np.searchsorted(cdf, j / 800)
                     value = sorted[index]
 
                     # Thresholding
@@ -327,13 +332,13 @@ class Preprocess():
                 criteria = np.array(criteria)
 
                 # Get Best Threshold in All Criteria
-                index = np.where(dis <= threshold_range[criteria.argmin()] / 400)[0][-1]
+                index = np.searchsorted(cdf, threshold_range[criteria.argmin()] / 400)
                 value = sorted[index]
 
             else:
 
                 # Get Threshold
-                index = np.where(dis <= 0.025)[0][-1]
+                index = np.searchsorted(cdf, 0.025)
                 value = sorted[index]
 
             # Thresholding
@@ -361,7 +366,7 @@ class Preprocess():
                 # Fill Holes in Mask (Along Z-Axis)
                 for j in range(hmask.shape[2]):
                     hmask[:, :, j] = ndimage.binary_closing(hmask[:, :, j], np.ones((struct, struct)))
-                
+
                 # Narrow Down Element Structure
                 struct = int(struct / 3 // 2) * 2 + 1
 
@@ -386,73 +391,7 @@ class Preprocess():
         self.hmasks = os.listdir(HM)
 
         return
-    
-    """
-    ====================================================================================================================
-    Clip Intensity
-    ====================================================================================================================
-    """
-    def clip_intensity(self) -> None:
 
-        print()
-        print('=' * 110)
-        print('Clip Intensity')
-        print('=' * 110)
-        print()
-
-        print('-' * 110)
-        print('Clip MR14 Intensity')
-        print('-' * 110)
-        
-        # Buffer for Maximum Value of MR
-        mean = 0
-
-        # Progress Bar
-        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
-        for i in progress:
-            
-            # Load Data
-            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
-            
-            # Summarize MR Maximum Value
-            if (i + 1) != 14:
-                mean += image.max()
-        print()
-
-        # Load MR14
-        image = nib.load(os.path.join(MR, self.images[13])).get_fdata().astype('float32')
-
-        # Mean Value of Maximum Value
-        mean /= (self.len - 1)
-
-        # Clip Intensity
-        image = np.clip(image, 0, mean)
-
-        # Save Data
-        image = nib.Nifti1Image(image, np.eye(4))
-        nib.save(image, os.path.join(MR, self.images[13]))
-
-        print('-' * 110)
-        print('Clip CT Intensity')
-        print('-' * 110)
-
-        # Progress Bar
-        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
-        for i in progress:
-
-            # Load Data
-            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
-
-            # Clip Intensity
-            label = np.clip(label, -1000, 3000)
-
-            # Save Data
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(CT, self.labels[i]))
-        print()
-
-        return
-    
     """
     ====================================================================================================================
     N4 Bias Correction
@@ -484,6 +423,43 @@ class Preprocess():
 
         return
 
+    """
+    ====================================================================================================================
+    Clip Intensity
+    ====================================================================================================================
+    """
+    def clip_intensity(self) -> None:
+
+        print()
+        print('=' * 110)
+        print('Clip Intensity')
+        print('=' * 110)
+        print()
+
+        # Progress Bar
+        progress = tqdm(range(self.len), bar_format = '{l_bar}{bar:40}{r_bar}')
+        for i in progress:
+            
+            # Load Data
+            image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
+            label = nib.load(os.path.join(CT, self.labels[i])).get_fdata().astype('float32')
+            hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
+
+            # Clip MR Intensity 0 ~ 99.5% Intensity
+            image = np.clip(image, 0, np.percentile(image[hmask], 99.5))
+
+            # Clip CT Intensity -1000 ~ 3000
+            label = np.clip(label, -1000, 3000)
+
+            # Save Data
+            image = nib.Nifti1Image(image, np.eye(4))
+            nib.save(image, os.path.join(MR, self.images[i]))
+            label = nib.Nifti1Image(label, np.eye(4))
+            nib.save(label, os.path.join(CT, self.labels[i]))
+        print()
+
+        return
+    
     """
     ====================================================================================================================
     Extract Brain Region
@@ -692,9 +668,10 @@ class Preprocess():
             image = nib.load(os.path.join(MR, self.images[i])).get_fdata().astype('float32')
             hmask = nib.load(os.path.join(HM, self.hmasks[i])).get_fdata().astype('bool')
 
-            # Z-Score
-            image -= image.mean()
-            image /= image.std()
+            # Foreground Z-Score
+            fore = image[hmask]
+            image -= fore.mean()
+            image /= fore.std()
 
             # [0, 1]
             image -= image.min()
