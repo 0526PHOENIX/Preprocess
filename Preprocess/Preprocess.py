@@ -30,17 +30,17 @@ from antspynet.utilities import brain_extraction
 Global Constant
 ========================================================================================================================
 """
-MR_RAW = "C:/Users/user/Desktop/Data/Data_Raw/MR"
-CT_RAW = "C:/Users/user/Desktop/Data/Data_Raw/CT"
+MR_RAW = ""
+CT_RAW = ""
 
-MR = "C:/Users/user/Desktop/Data/Data/MR"
-CT = "C:/Users/user/Desktop/Data/Data/CT"
-HM = "C:/Users/user/Desktop/Data/Data/HM"
-BR = "C:/Users/user/Desktop/Data/Data/BR"
-SK = "C:/Users/user/Desktop/Data/Data/SK"
-EQ = "C:/Users/user/Desktop/Data/Data/EQ"
+MR = ""
+CT = ""
+HM = ""
+BR = ""
+SK = ""
+EQ = ""
 
-DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
+DATA_2D = ""
 
 
 PATH_LIST = [MR, CT, HM, BR, SK, EQ, DATA_2D]
@@ -165,8 +165,8 @@ class Preprocess():
         """
         # # Slice with Random Order
         # self.slice_random(threshold = 0.075)
-        # Slice with Specific Order
-        self.slice_ordered(threshold = 0.075)
+        # # Slice with Specific Order
+        # self.slice_ordered(threshold = 0.075)
 
         return
     
