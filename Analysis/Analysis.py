@@ -17,10 +17,11 @@ import datetime
 from tqdm import tqdm
 from typing import Literal
 
-from scipy import io
 import numpy as np
 import nibabel as nib
 import matplotlib.pyplot as plt
+
+from scipy import io
 
 import torch
 
@@ -129,8 +130,8 @@ class Analysis():
     """
     def main(self) -> None:
 
-        self.print_rawdata()
-        self.print_statist()
+        # self.print_rawdata()
+        # self.print_statist()
         # self.print_metrics()
         # self.print_stissue()
 
@@ -224,9 +225,9 @@ class Analysis():
             # Data Shape
             shape = str(image.shape).replace(' ', '')
 
-            # Remove Air Region
-            image = image[hmask]
-            label = label[hmask]
+            # # Remove Air Region
+            # image = image[hmask]
+            # label = label[hmask]
 
             # 50% & 99.5%
             image_50_0 = np.percentile(image, 50.0)
@@ -410,7 +411,7 @@ class Analysis():
     Plot Historgram
     ====================================================================================================================
     """
-    def histogram(self, bins: int = 5000) -> None:
+    def histogram(self, bins: int = 500) -> None:
 
         print()
         print('=' * 110)

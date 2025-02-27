@@ -18,14 +18,12 @@ Global Constant
 MR_RAW = ""
 CT_RAW = ""
 
-MR = "C:/Users/user/Desktop/Data/Data/MR"
-CT = "C:/Users/user/Desktop/Data/Data/CT"
-HM = "C:/Users/user/Desktop/Data/Data/HM"
-BR = "C:/Users/user/Desktop/Data/Data/BR"
-SK = "C:/Users/user/Desktop/Data/Data/SK"
-EQ = "C:/Users/user/Desktop/Data/Data/EQ"
-
-DATA_2D = "C:/Users/user/Desktop/Data/Data_2D"
+MR = ""
+CT = ""
+HM = ""
+BR = ""
+SK = ""
+EQ = ""
 
 MR_PD = "C:/Users/user/Desktop/Data/Data_Pad/MR"
 CT_PD = "C:/Users/user/Desktop/Data/Data_Pad/CT"
@@ -55,13 +53,6 @@ class Test():
         print('Initialization')
         print('=' * 110)
         print()
-
-        # # Data_2D File Path
-        # for dataset in ['Train', 'Val', 'Test']:
-        #     for data in ['MR', 'CT', 'HM', 'BR', 'SK', 'EQ']:
-        #         path = os.path.join(os.path.join(DATA_2D, dataset, data))
-        #         if not os.path.exists(path):
-        #             os.makedirs(path)
 
         # Check File Path
         for path in PATH_LIST:
@@ -144,8 +135,7 @@ class Test():
             equal[hmask] = flat
             
             # Save Data
-            equal = nib.Nifti1Image(equal, np.eye(4))
-            nib.save(equal, os.path.join(EQ, 'EQ' + self.images[i][2:]))
+            nib.save(nib.Nifti1Image(equal, np.eye(4)), os.path.join(EQ, 'EQ' + self.images[i][2:]))
         print()
 
         return
@@ -190,16 +180,11 @@ class Test():
             skull = np.rot90(skull.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
             # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(MR_PD, self.images[i]))
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(CT_PD, self.labels[i]))
-            hmask = nib.Nifti1Image(hmask, np.eye(4))
-            nib.save(hmask, os.path.join(HM_PD, self.hmasks[i]))
-            brain = nib.Nifti1Image(brain, np.eye(4))
-            nib.save(brain, os.path.join(BR_PD, self.brains[i]))
-            skull = nib.Nifti1Image(skull, np.eye(4))
-            nib.save(skull, os.path.join(SK_PD, self.skulls[i]))
+            nib.save(nib.Nifti1Image(image, np.eye(4)), os.path.join(MR_PD, self.images[i]))
+            nib.save(nib.Nifti1Image(label, np.eye(4)), os.path.join(CT_PD, self.labels[i]))
+            nib.save(nib.Nifti1Image(hmask, np.eye(4)), os.path.join(HM_PD, self.hmasks[i]))
+            nib.save(nib.Nifti1Image(brain, np.eye(4)), os.path.join(BR_PD, self.brains[i]))
+            nib.save(nib.Nifti1Image(skull, np.eye(4)), os.path.join(SK_PD, self.skulls[i]))
         print()
 
         return

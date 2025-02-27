@@ -133,30 +133,30 @@ class Preprocess():
         """
         # # MR N4 Bias Correction
         # self.correct_bias()
-        # Clip Intensity
-        self.clip_intensity()
+        # # Clip Intensity
+        # self.clip_intensity()
 
         """
         ================================================================================================================
         Medical Image Process
         ================================================================================================================
         """
-        # Extract Brain Region
-        self.extract_brain()
-        # Fill Holes in Brain Mask
-        self.fill_hole()
-        # Remove Useless Area
-        self.remove_uselessness()
-        # Extract Slull Region
-        self.extract_skull()
+        # # Extract Brain Region
+        # self.extract_brain()
+        # # Fill Holes in Brain Mask
+        # self.fill_hole()
+        # # Remove Useless Area
+        # self.remove_uselessness()
+        # # Extract Slull Region
+        # self.extract_skull()
 
         """
         ================================================================================================================
         Normalization
         ================================================================================================================
         """
-        # MR Intensity Normalize + Histogram Normalization
-        self.apply_normalization()
+        # # MR Intensity Normalize + Histogram Normalization
+        # self.apply_normalization()
 
         """
         ================================================================================================================
@@ -165,8 +165,8 @@ class Preprocess():
         """
         # # Slice with Random Order
         # self.slice_random(threshold = 0.075)
-        # # Slice with Specific Order
-        # self.slice_ordered(threshold = 0.075)
+        # Slice with Specific Order
+        self.slice_ordered(threshold = 0.075)
 
         return
     
@@ -196,10 +196,8 @@ class Preprocess():
             label = io.loadmat(os.path.join(CT_RAW, self.labels[i]))['CT'].astype('float32')
 
             # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i].strip('.mat') + '.nii'))
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(CT, self.labels[i].strip('.mat') + '.nii'))
+            nib.save(nib.Nifti1Image(image, np.eye(4)), os.path.join(MR, self.images[i].strip('.mat') + '.nii'))
+            nib.save(nib.Nifti1Image(label, np.eye(4)), os.path.join(CT, self.labels[i].strip('.mat') + '.nii'))
         print()
 
         # New File Name
@@ -259,10 +257,8 @@ class Preprocess():
             label = label[: 256, : 256, :]
 
             # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i]))
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(CT, self.labels[i]))
+            nib.save(nib.Nifti1Image(image, np.eye(4)), os.path.join(MR, self.images[i]))
+            nib.save(nib.Nifti1Image(label, np.eye(4)), os.path.join(CT, self.labels[i]))
         print()
         
         return 
@@ -379,12 +375,9 @@ class Preprocess():
             hmask = np.where(hmask, 1, 0)
 
             # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i]))
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(CT, self.labels[i]))
-            hmask = nib.Nifti1Image(hmask, np.eye(4))
-            nib.save(hmask, os.path.join(HM, 'HM' + self.images[i][2:]))
+            nib.save(nib.Nifti1Image(image, np.eye(4)), os.path.join(MR, self.images[i]))
+            nib.save(nib.Nifti1Image(label, np.eye(4)), os.path.join(CT, self.labels[i]))
+            nib.save(nib.Nifti1Image(hmask, np.eye(4)), os.path.join(HM, 'HM' + self.images[i][2:]))
         print()
 
         # Get New File Name
@@ -452,10 +445,8 @@ class Preprocess():
             label = np.clip(label, -1000, 3000)
 
             # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i]))
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(CT, self.labels[i]))
+            nib.save(nib.Nifti1Image(image, np.eye(4)), os.path.join(MR, self.images[i]))
+            nib.save(nib.Nifti1Image(label, np.eye(4)), os.path.join(CT, self.labels[i]))
         print()
 
         return
@@ -573,8 +564,7 @@ class Preprocess():
             brain = np.where(brain, 1, 0)
 
             # Save Brain Mask
-            brain = nib.Nifti1Image(brain, np.eye(4))
-            nib.save(brain, os.path.join(BR, self.brains[i]))
+            nib.save(nib.Nifti1Image(brain, np.eye(4)), os.path.join(BR, self.brains[i]))
         print()
 
         return
@@ -637,12 +627,9 @@ class Preprocess():
                 hmask[:, j, :point[j]] = 0.0
 
             # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i]))
-            label = nib.Nifti1Image(label, np.eye(4))
-            nib.save(label, os.path.join(CT, self.labels[i]))
-            hmask = nib.Nifti1Image(hmask, np.eye(4))
-            nib.save(hmask, os.path.join(HM, self.hmasks[i]))
+            nib.save(nib.Nifti1Image(image, np.eye(4)), os.path.join(MR, self.images[i]))
+            nib.save(nib.Nifti1Image(label, np.eye(4)), os.path.join(CT, self.labels[i]))
+            nib.save(nib.Nifti1Image(hmask, np.eye(4)), os.path.join(HM, self.hmasks[i]))
         print()
 
         return
@@ -701,10 +688,8 @@ class Preprocess():
             equal[hmask] = flat
             
             # Save Data
-            image = nib.Nifti1Image(image, np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i]))
-            equal = nib.Nifti1Image(equal, np.eye(4))
-            nib.save(equal, os.path.join(EQ, 'EQ' + self.images[i][2:]))
+            nib.save(nib.Nifti1Image(image, np.eye(4)), os.path.join(MR, self.images[i]))
+            nib.save(nib.Nifti1Image(equal, np.eye(4)), os.path.join(EQ, 'EQ' + self.images[i][2:]))
         print()
         
         return
@@ -770,8 +755,7 @@ class Preprocess():
             skull = np.where(skull, label, -1000)
 
             # Save Data
-            skull = nib.Nifti1Image(skull, np.eye(4))
-            nib.save(skull, os.path.join(SK, 'SK' + self.labels[i][2:]))
+            nib.save(nib.Nifti1Image(skull, np.eye(4)), os.path.join(SK, 'SK' + self.labels[i][2:]))
         print()
 
         # Get New File Name
@@ -885,32 +869,20 @@ class Preprocess():
                 eq = np.rot90(eq.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
-                mr = nib.Nifti1Image(mr, np.eye(4))
-                nib.save(mr, os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(k) + '.nii'))
-                ct = nib.Nifti1Image(ct, np.eye(4))
-                nib.save(ct, os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(k) + '.nii'))
-                hm = nib.Nifti1Image(hm, np.eye(4))
-                nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(k) + '.nii'))
-                br = nib.Nifti1Image(br, np.eye(4))
-                nib.save(br, os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(k) + '.nii'))
-                sk = nib.Nifti1Image(sk, np.eye(4))
-                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
-                eq = nib.Nifti1Image(eq, np.eye(4))
-                nib.save(eq, os.path.join(DATA_2D, dataset, 'EQ', self.equals[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(mr, np.eye(4)), os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(ct, np.eye(4)), os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(hm, np.eye(4)), os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(br, np.eye(4)), os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(sk, np.eye(4)), os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(eq, np.eye(4)), os.path.join(DATA_2D, dataset, 'EQ', self.equals[i][:-4] + '_' + str(k) + '.nii'))
 
             # Remove Redundant Area + Save Data
-            image = nib.Nifti1Image(image[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i]))
-            label = nib.Nifti1Image(label[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(label, os.path.join(CT, self.labels[i]))
-            hmask = nib.Nifti1Image(hmask[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(hmask, os.path.join(HM, self.hmasks[i]))
-            brain = nib.Nifti1Image(brain[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(brain, os.path.join(BR, self.brains[i]))
-            skull = nib.Nifti1Image(skull[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(skull, os.path.join(SK, self.skulls[i]))
-            equal = nib.Nifti1Image(equal[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(equal, os.path.join(EQ, self.equals[i]))
+            nib.save(nib.Nifti1Image(image[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(MR, self.images[i]))
+            nib.save(nib.Nifti1Image(label[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(CT, self.labels[i]))
+            nib.save(nib.Nifti1Image(hmask[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(HM, self.hmasks[i]))
+            nib.save(nib.Nifti1Image(brain[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(BR, self.brains[i]))
+            nib.save(nib.Nifti1Image(skull[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(SK, self.skulls[i]))
+            nib.save(nib.Nifti1Image(equal[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(EQ, self.equals[i]))
         print()
 
         # Check Training, Validation, Testing Set
@@ -1071,32 +1043,20 @@ class Preprocess():
                 eq = np.rot90(eq.transpose(2, 0, 1), k = 1, axes = (1, 2))
 
                 # Save Data
-                mr = nib.Nifti1Image(mr, np.eye(4))
-                nib.save(mr, os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(k) + '.nii'))
-                ct = nib.Nifti1Image(ct, np.eye(4))
-                nib.save(ct, os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(k) + '.nii'))
-                hm = nib.Nifti1Image(hm, np.eye(4))
-                nib.save(hm, os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(k) + '.nii'))
-                br = nib.Nifti1Image(br, np.eye(4))
-                nib.save(br, os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(k) + '.nii'))
-                sk = nib.Nifti1Image(sk, np.eye(4))
-                nib.save(sk, os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
-                eq = nib.Nifti1Image(eq, np.eye(4))
-                nib.save(eq, os.path.join(DATA_2D, dataset, 'EQ', self.equals[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(mr, np.eye(4)), os.path.join(DATA_2D, dataset, 'MR', self.images[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(ct, np.eye(4)), os.path.join(DATA_2D, dataset, 'CT', self.labels[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(hm, np.eye(4)), os.path.join(DATA_2D, dataset, 'HM', self.hmasks[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(br, np.eye(4)), os.path.join(DATA_2D, dataset, 'BR', self.brains[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(sk, np.eye(4)), os.path.join(DATA_2D, dataset, 'SK', self.skulls[i][:-4] + '_' + str(k) + '.nii'))
+                nib.save(nib.Nifti1Image(eq, np.eye(4)), os.path.join(DATA_2D, dataset, 'EQ', self.equals[i][:-4] + '_' + str(k) + '.nii'))
 
             # Remove Redundant Area + Save Data
-            image = nib.Nifti1Image(image[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(image, os.path.join(MR, self.images[i]))
-            label = nib.Nifti1Image(label[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(label, os.path.join(CT, self.labels[i]))
-            hmask = nib.Nifti1Image(hmask[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(hmask, os.path.join(HM, self.hmasks[i]))
-            brain = nib.Nifti1Image(brain[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(brain, os.path.join(BR, self.brains[i]))
-            skull = nib.Nifti1Image(skull[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(skull, os.path.join(SK, self.skulls[i]))
-            equal = nib.Nifti1Image(equal[:, :, lower_overall : upper_overall], np.eye(4))
-            nib.save(equal, os.path.join(EQ, self.equals[i]))
+            nib.save(nib.Nifti1Image(image[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(MR, self.images[i]))
+            nib.save(nib.Nifti1Image(label[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(CT, self.labels[i]))
+            nib.save(nib.Nifti1Image(hmask[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(HM, self.hmasks[i]))
+            nib.save(nib.Nifti1Image(brain[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(BR, self.brains[i]))
+            nib.save(nib.Nifti1Image(skull[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(SK, self.skulls[i]))
+            nib.save(nib.Nifti1Image(equal[:, :, lower_overall : upper_overall], np.eye(4)), os.path.join(EQ, self.equals[i]))
         print()
 
         # Check Training, Validation, Testing Set
